@@ -1,5 +1,5 @@
-import { AppRouter } from '@/components/voxy-app'
+import { Dashboard } from '@/components/voxy-app'
 
 export default function InboxRoute() {
-  return <AppRouter />
+  return <Dashboard page="inbox" />
 }
