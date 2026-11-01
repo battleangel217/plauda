@@ -10,7 +10,7 @@ const inboxMessages = (name: string, status: ConversationStatus): InboxMessage[]
   ...(status === 'human_active' ? [{ id: `${name}-4`, role: 'staff' as const, text: 'Hi, Alex here. I’m taking a look now.', time: '2:16 PM', staffName: 'Alex' }] : []),
 ]
 
-const baseInboxOrder: Order = { id: 'VOX-1048', status: 'pending_payment', currency: 'USD', subtotal: 66, deliveryFee: 6, total: 72, items: [{ nameSnapshot: 'Everyday Tote', variantSnapshot: 'Natural', qty: 1, unitPrice: 38 }, { nameSnapshot: 'Ceramic Travel Mug', variantSnapshot: 'Sand', qty: 1, unitPrice: 28 }], deliveryDetails: 'Standard delivery · 3–5 business days', approvalLink: 'https://www.paypal.com/checkoutnow?token=voxy-demo' }
+const baseInboxOrder: Order = { id: 'VOX-1048', status: 'pending_payment', currency: 'USD', subtotal: 66, deliveryFee: 6, total: 72, items: [{ nameSnapshot: 'Everyday Tote', variantSnapshot: 'Natural', qty: 1, unitPrice: 38 }, { nameSnapshot: 'Ceramic Travel Mug', variantSnapshot: 'Sand', qty: 1, unitPrice: 28 }], deliveryDetails: 'Standard delivery · 3–5 business days', approvalLink: 'https://www.paypal.com/checkoutnow?token=plauda-demo' }
 
 export const inboxConversations: InboxConversation[] = [
   { id: 'c1', customerName: 'Maya Chen', status: 'handoff_requested', lastMessage: 'I would really like to speak with someone.', updatedAt: '2m', handoffReason: 'Customer asked for a person', messages: inboxMessages('maya', 'handoff_requested'), order: baseInboxOrder, payment: { status: 'Pending', paypalId: '8TQ92145K', approvalLink: baseInboxOrder.approvalLink }, contact: { name: 'Maya Chen', phone: '+1 415 555 0192', email: 'maya@example.com' } },
@@ -27,7 +27,7 @@ export const products: Product[] = [
   { id: 'p1', name: 'Everyday Tote', description: 'A durable canvas tote for everyday errands.', price: 38, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v1', name: 'Natural', options: ['Natural'], stock: 24 }] },
   { id: 'p2', name: 'Ceramic Travel Mug', description: 'Hand-finished stoneware with a leak-resistant lid.', price: 28, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v2', name: 'Sand', options: ['Sand'], stock: 12 }, { id: 'v3', name: 'Forest', options: ['Forest'], stock: 8 }] },
 ]
-export const demoOrder: Order = { id: 'VOX-1048', status: 'pending_payment', currency: 'USD', subtotal: 66, deliveryFee: 6, total: 72, items: [{ nameSnapshot: 'Everyday Tote', variantSnapshot: 'Natural', qty: 1, unitPrice: 38 }, { nameSnapshot: 'Ceramic Travel Mug', variantSnapshot: 'Sand', qty: 1, unitPrice: 28 }], deliveryDetails: 'Standard delivery · 3–5 business days', approvalLink: 'https://www.paypal.com/checkoutnow?token=voxy-demo' }
+export const demoOrder: Order = { id: 'VOX-1048', status: 'pending_payment', currency: 'USD', subtotal: 66, deliveryFee: 6, total: 72, items: [{ nameSnapshot: 'Everyday Tote', variantSnapshot: 'Natural', qty: 1, unitPrice: 38 }, { nameSnapshot: 'Ceramic Travel Mug', variantSnapshot: 'Sand', qty: 1, unitPrice: 28 }], deliveryDetails: 'Standard delivery · 3–5 business days', approvalLink: 'https://www.paypal.com/checkoutnow?token=plauda-demo' }
 export const initialMessages: ChatMessage[] = [
   { id: 'm1', role: 'agent', text: 'Hi there! I’m the AI assistant for Luma Goods. What can I help you find today?', time: '10:42 AM' },
   { id: 'm2', role: 'customer', text: 'I’m looking for a tote and a travel mug.', time: '10:43 AM' },
