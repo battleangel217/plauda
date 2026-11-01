@@ -1,2 +1,5 @@
-import { AuthPage } from '@/components/voxy-app'
-export default function Page() { return <AuthPage register /> }
+import { AuthPage } from '@/components/auth-page'
+
+export default function Page() {
+  return <AuthPage register />
+}
