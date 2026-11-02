@@ -1,5 +1,10 @@
-import { Dashboard } from '@/components/plauda-app'
+import { Shell } from '@/components/shell'
+import { InboxPage } from '@/components/inbox-page'
 
 export default function InboxRoute() {
-  return <Dashboard page="inbox" />
+  return (
+    <Shell>
+      <InboxPage />
+    </Shell>
+  )
 }

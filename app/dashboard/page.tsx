@@ -1,2 +1,5 @@
-import { Dashboard } from '@/components/plauda-app'
-export default function Page() { return <Dashboard /> }
+import { DashboardPage } from '@/components/dashboard-page'
+
+export default function DashboardRoute() {
+  return <DashboardPage />
+}

@@ -1,5 +1,10 @@
+import { Shell } from '@/components/shell'
 import { SettingsPage } from '@/components/workspace-pages'
 
 export default function SettingsRoute() {
-  return <SettingsPage />
+  return (
+    <Shell>
+      <SettingsPage />
+    </Shell>
+  )
 }

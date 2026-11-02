@@ -1,5 +1,5 @@
-import { AppRouter } from '@/components/plauda-app'
+import { LandingPage } from '@/components/landing-page'
 
 export default function Page() {
-  return <AppRouter />
+  return <LandingPage />
 }

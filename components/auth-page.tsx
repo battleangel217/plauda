@@ -52,7 +52,7 @@ export function AuthPage({ register }: { register: boolean }) {
     setLoading(true)
     window.setTimeout(() => {
       if ((!register && forcedError === 'invalid') || (register && forcedError !== 'none')) { setError(forcedError === 'email' ? 'That email is already registered.' : forcedError === 'mismatch' ? 'Passwords do not match.' : forcedError === 'short' ? 'Password must be at least 8 characters.' : 'We could not sign you in with those details.'); setLoading(false); return }
-      document.cookie = 'plauda_demo_auth=1; path=/; max-age=86400; SameSite=Lax'; router.push('/')
+      document.cookie = 'plauda_demo_auth=1; path=/; max-age=86400; SameSite=Lax'; router.push('/dashboard')
     }, 1000)
   }
 
