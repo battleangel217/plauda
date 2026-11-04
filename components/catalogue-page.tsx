@@ -6,18 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { products as seedProducts } from '@/lib/mock'
+import { extraProducts, products as seedProducts } from '@/lib/mock'
 import type { Product, ProductVariant } from '@/lib/types'
 
 type Zone = { id: string; name: string; areas: string[]; fee: number; eta: string }
-const extraProducts: Product[] = [
-  { id: 'p3', name: 'Linen Apron', description: 'Soft linen apron for slow mornings.', price: 52, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [] },
-  { id: 'p4', name: 'Hand Poured Candle', description: 'A warm cedar and fig candle.', price: 24, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v4', name: 'Cedar', options: ['Scent: Cedar'], stock: 4 }] },
-  { id: 'p5', name: 'Wool Throw', description: 'A generous woven wool throw.', price: 96, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v5', name: 'Oat', options: ['Color: Oat'], stock: 18 }, { id: 'v6', name: 'Charcoal', options: ['Color: Charcoal'], stock: 7 }] },
-  { id: 'p6', name: 'Market Basket', description: 'Handwoven basket with leather handles.', price: 74, currency: 'USD', active: false, imageUrls: ['/placeholder.jpg'], variants: [] },
-  { id: 'p7', name: 'Stoneware Plate', description: 'Everyday plate made by hand.', price: 19, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v7', name: 'Ivory', options: ['Color: Ivory'], stock: 32 }] },
-  { id: 'p8', name: 'Cotton Napkins', description: 'Set of four washed cotton napkins.', price: 32, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v8', name: 'Natural', options: ['Color: Natural'], stock: 14 }] },
-]
 const initialProducts = [...seedProducts, ...extraProducts]
 const initialZones: Zone[] = [
   { id: 'z1', name: 'United States', areas: ['All states'], fee: 6, eta: '3–5' },

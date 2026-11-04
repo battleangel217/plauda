@@ -1,4 +1,4 @@
-import type { ChatMessage, ConversationStatus, MessageRole, Order, Product } from './types'
+import type { ChatMessage, CheckoutCustomer, ConversationStatus, Merchant, MessageRole, Order, Product } from './types'
 
 export interface InboxMessage { id: string; role: MessageRole; text: string; time: string; staffName?: string }
 export interface InboxConversation { id: string; customerName?: string; status: ConversationStatus; lastMessage: string; updatedAt: string; handoffReason: string; messages: InboxMessage[]; order?: Order; payment: { status: string; paypalId: string; approvalLink: string; paidAt?: string }; contact: { name?: string; phone?: string; email?: string } }
@@ -22,10 +22,20 @@ export const inboxConversations: InboxConversation[] = [
 ]
 
 
-export const merchant = { name: 'Luma Goods', slug: 'luma-goods', email: 'hello@lumagoods.co' }
+export const merchant: Merchant = { name: 'Luma Goods', slug: 'luma-goods', email: 'hello@lumagoods.co', tagline: 'Considered everyday objects, made to last.' }
+export const demoCheckout: CheckoutCustomer & { delivery: string } = { name: 'Maya Chen', email: 'maya@example.com', address: '18 Clement St, San Francisco, CA 94118', delivery: 'Standard delivery · 3–5 business days' }
 export const products: Product[] = [
   { id: 'p1', name: 'Everyday Tote', description: 'A durable canvas tote for everyday errands.', price: 38, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v1', name: 'Natural', options: ['Natural'], stock: 24 }] },
   { id: 'p2', name: 'Ceramic Travel Mug', description: 'Hand-finished stoneware with a leak-resistant lid.', price: 28, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v2', name: 'Sand', options: ['Sand'], stock: 12 }, { id: 'v3', name: 'Forest', options: ['Forest'], stock: 8 }] },
+]
+
+export const extraProducts: Product[] = [
+  { id: 'p3', name: 'Linen Apron', description: 'Soft linen apron for slow mornings.', price: 52, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [] },
+  { id: 'p4', name: 'Hand Poured Candle', description: 'A warm cedar and fig candle.', price: 24, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v4', name: 'Cedar', options: ['Scent: Cedar'], stock: 4 }] },
+  { id: 'p5', name: 'Wool Throw', description: 'A generous woven wool throw.', price: 96, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v5', name: 'Oat', options: ['Color: Oat'], stock: 18 }, { id: 'v6', name: 'Charcoal', options: ['Color: Charcoal'], stock: 7 }] },
+  { id: 'p6', name: 'Market Basket', description: 'Handwoven basket with leather handles.', price: 74, currency: 'USD', active: false, imageUrls: ['/placeholder.jpg'], variants: [] },
+  { id: 'p7', name: 'Stoneware Plate', description: 'Everyday plate made by hand.', price: 19, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v7', name: 'Ivory', options: ['Color: Ivory'], stock: 32 }] },
+  { id: 'p8', name: 'Cotton Napkins', description: 'Set of four washed cotton napkins.', price: 32, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [{ id: 'v8', name: 'Natural', options: ['Color: Natural'], stock: 14 }] },
 ]
 export const demoOrder: Order = { id: 'VOX-1048', status: 'pending_payment', currency: 'USD', subtotal: 66, deliveryFee: 6, total: 72, items: [{ nameSnapshot: 'Everyday Tote', variantSnapshot: 'Natural', qty: 1, unitPrice: 38 }, { nameSnapshot: 'Ceramic Travel Mug', variantSnapshot: 'Sand', qty: 1, unitPrice: 28 }], deliveryDetails: 'Standard delivery · 3–5 business days', approvalLink: 'https://www.paypal.com/checkoutnow?token=plauda-demo' }
 export const initialMessages: ChatMessage[] = [

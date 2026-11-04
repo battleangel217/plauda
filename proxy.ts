@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
-  const isPublic = path === '/' || path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/chat/')
+  const isPublicApi =
+    path.startsWith('/api/store/') ||
+    path.startsWith('/api/chat/') ||
+    path.startsWith('/api/orders/')
+  const isPublic =
+    path === '/' ||
+    path.startsWith('/login') ||
+    path.startsWith('/register') ||
+    path.startsWith('/chat/') ||
+    path.startsWith('/store/') ||
+    path.startsWith('/checkout/') ||
+    isPublicApi
   if (!isPublic && !request.cookies.has('plauda_demo_auth')) {
     const login = new URL('/login', request.url)
     login.searchParams.set('expired', '1')

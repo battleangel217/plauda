@@ -20,7 +20,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { BRAND_NAME, chatUrl } from '@/lib/brand'
+import { BRAND_NAME } from '@/lib/brand'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -62,15 +62,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     setMobile(false)
   }, [pathname])
 
-  const chatPath = '/chat/luma-goods'
-  const [chatLink, setChatLink] = useState(chatPath)
+  const storePath = '/store/luma-goods'
+  const [storeLink, setStoreLink] = useState(storePath)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setChatLink(`${window.location.origin}${chatPath}`)
+      setStoreLink(`${window.location.origin}${storePath}`)
     }
   }, [])
   const copyLink = async () => {
-    const full = typeof window !== 'undefined' ? `${window.location.origin}${chatPath}` : chatLink
+    const full = typeof window !== 'undefined' ? `${window.location.origin}${storePath}` : storeLink
     await navigator.clipboard?.writeText(full)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -147,13 +147,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Ready to handle customers 24/7.
           </p>
           <a
-            href={chatPath}
+            href={storePath}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline font-mono truncate"
             suppressHydrationWarning
           >
-            {chatLink}
+            {storeLink}
             <ChevronRight className="size-3 flex-shrink-0" />
           </a>
         </div>
@@ -186,14 +186,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
               size="sm"
               className="hidden rounded-full sm:flex"
               onClick={copyLink}
-              aria-label="Copy chat link"
+              aria-label="Copy store link"
             >
               {copied ? (
                 <Check className="mr-2 size-3.5 text-emerald-600" />
               ) : (
                 <Clipboard className="mr-2 size-3.5" />
               )}
-              {copied ? 'Copied!' : 'Copy chat link'}
+              {copied ? 'Copied!' : 'Copy store link'}
             </Button>
             <Button
               variant="ghost"

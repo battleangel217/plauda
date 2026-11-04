@@ -7,3 +7,41 @@ export interface Product { id: string; name: string; description: string; price:
 export interface OrderItem { nameSnapshot: string; variantSnapshot: string; qty: number; unitPrice: number }
 export interface Order { id: string; status: OrderStatus; currency: string; subtotal: number; deliveryFee: number; total: number; items: OrderItem[]; deliveryDetails: string; approvalLink: string }
 export interface ChatMessage { id: string; role: MessageRole; text: string; time: string }
+
+export interface Merchant { name: string; slug: string; email: string; tagline: string }
+export interface DeliveryOption { label: string; eta: string; fee: number }
+export interface CheckoutCustomer { name: string; email: string; address: string }
+
+export interface StoreChat {
+  sessionId?: string
+  messages: ChatMessage[]
+  order?: Order
+}
+
+export interface StoreSnapshot {
+  merchant: Merchant
+  products: Product[]
+  delivery: DeliveryOption
+  chat: StoreChat
+}
+
+export interface CheckoutSnapshot {
+  order: Order
+  merchant: Merchant
+  customer: CheckoutCustomer
+}
+
+export interface ChatReply {
+  sessionId: string
+  messages: ChatMessage[]
+  order?: Order
+}
+
+export interface PaymentResult {
+  order: Order
+  payment: {
+    status: 'paid'
+    paidAt: string
+    paypalId: string
+  }
+}
