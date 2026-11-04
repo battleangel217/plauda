@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { ArrowUpRight, Bot, Check, ChevronDown, CreditCard, Globe, LayoutDashboard, MessageSquare, PhoneCall, ShoppingBag, Sparkles, X, Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowUpRight, Bot, Check, CreditCard, Languages, LayoutDashboard, MessageSquare, Package, ShoppingBag, Sparkles, Store, X, Menu } from 'lucide-react'
 import { BRAND_NAME } from '@/lib/brand'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -130,47 +130,130 @@ function Nav() {
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
-function AnimatedBars() {
-  const heights = [30, 45, 49, 38, 24, 17, 24, 43, 62, 69, 61, 47, 40, 48, 67, 86, 92, 84, 70, 63, 71, 91, 98, 98, 98, 93, 86, 95, 98, 98, 98, 98, 98, 90, 92, 98, 98, 79, 66, 68, 82, 93, 92, 76, 56, 43, 45, 59, 70, 68, 53, 32, 20, 22, 36, 47, 48, 36]
+const previewProducts = [
+  { name: 'Everyday Tote', detail: 'Natural canvas', price: '$38' },
+  { name: 'Ceramic Mug', detail: 'Sand · 12 oz', price: '$28' },
+]
+
+function HeroPreview() {
   return (
-    <div className="absolute bottom-0 left-0 right-0 top-0 flex items-end justify-center gap-1 sm:gap-1.5 px-4 opacity-50 mix-blend-screen pointer-events-none">
-      {heights.map((h, i) => (
-        <div
-          key={i}
-          className="w-[3px] sm:w-1 rounded-full bg-gradient-to-t from-transparent via-primary/70 to-primary"
-          style={{
-            height: `${h}%`,
-            opacity: 0.2 + (i / heights.length) * 0.8,
-            animation: `equalizer ${2 + (i % 4) * 0.35}s ease-in-out infinite alternate`,
-            animationDelay: `${(i % 12) * 0.1}s`,
-          }}
-        />
-      ))}
-      <style>{`
-        @keyframes equalizer {
-          0% { transform: scaleY(0.4); }
-          100% { transform: scaleY(1); }
-        }
-      `}</style>
+    <div className="relative mx-auto w-full max-w-[920px] px-6 pb-16">
+      <div className="pointer-events-none absolute inset-x-24 top-16 z-0 h-64 rounded-[32px] bg-primary/10 blur-3xl" />
+      <div className="relative z-10 overflow-hidden rounded-[16px] border border-border/70 bg-card text-left">
+        {/* Browser bar */}
+        <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/30 px-4 py-3">
+          <span className="size-2 rounded-full bg-border" />
+          <span className="size-2 rounded-full bg-border" />
+          <span className="size-2 rounded-full bg-border" />
+          <div className="mx-auto flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1">
+            <Store className="size-3 text-muted-foreground" />
+            <span className="font-mono text-[10px] text-muted-foreground">luma-goods.plauda.app</span>
+          </div>
+          <span className="w-8" aria-hidden="true" />
+        </div>
+
+        <div className="grid md:grid-cols-[1.02fr_0.98fr]">
+          {/* Storefront pane */}
+          <div className="border-b border-border/60 p-5 sm:p-6 md:border-b-0 md:border-r">
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-[8px] bg-primary text-primary-foreground">
+                <Sparkles className="size-4" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold leading-tight">Luma Goods</p>
+                <p className="text-[11px] text-muted-foreground">Everyday objects, made well</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {previewProducts.map((product) => (
+                <div key={product.name} className="rounded-[10px] border border-border/60 bg-background p-2.5">
+                  <div className="mb-2.5 grid aspect-[4/3] place-items-center rounded-[7px] border border-border/40 bg-gradient-to-br from-secondary to-accent">
+                    <div className="size-9 rounded-full bg-background/50" />
+                  </div>
+                  <p className="text-[12px] font-medium leading-tight">{product.name}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{product.detail}</p>
+                  <p className="mt-1.5 font-mono text-[11px]">{product.price}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between rounded-[8px] border border-border/60 bg-muted/30 px-3 py-2">
+              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Package className="size-3" /> Standard delivery · 3–5 days
+              </span>
+              <span className="text-[10px] font-medium text-primary">Store link</span>
+            </div>
+          </div>
+
+          {/* Chat pane */}
+          <div className="flex flex-col bg-background p-4 sm:p-5">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="grid size-7 place-items-center rounded-full bg-primary text-primary-foreground">
+                  <Bot className="size-3.5" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-medium leading-tight">Luma assistant</p>
+                  <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="size-1.5 rounded-full bg-emerald-500" /> Online now
+                  </p>
+                </div>
+              </div>
+              <Sparkles className="size-3.5 text-muted-foreground/50" />
+            </div>
+
+            <div className="flex flex-1 flex-col gap-2.5 py-4">
+              <div className="max-w-[85%] rounded-[10px] rounded-bl-sm border border-border/60 bg-card px-3 py-2 text-[11px] leading-relaxed">
+                Hi! Looking for something in particular?
+              </div>
+              <div className="ml-auto max-w-[80%] rounded-[10px] rounded-br-sm bg-primary px-3 py-2 text-[11px] leading-relaxed text-primary-foreground">
+                A gift under $50 — maybe a mug?
+              </div>
+              <div className="max-w-[90%] rounded-[10px] rounded-bl-sm border border-border/60 bg-card px-3 py-2 text-[11px] leading-relaxed">
+                The Ceramic Travel Mug is $28 and in stock in Sand. I can add it to your order.
+              </div>
+            </div>
+
+            <div className="rounded-[10px] border border-border/60 bg-card p-3">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium">Ceramic Travel Mug</span>
+                <span className="font-mono">$28.00</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Sand · Qty 1</span>
+                <span>+ $6 delivery</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
+                <span className="text-[11px] font-semibold">Total</span>
+                <span className="font-mono text-[12px] font-semibold">$34.00</span>
+              </div>
+              <div className="mt-2 flex h-8 items-center justify-center gap-1.5 rounded-[6px] bg-foreground text-[11px] font-medium text-background">
+                Review &amp; pay <ArrowUpRight className="size-3" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
 function Hero() {
   return (
-    <section className="relative min-h-[100vh] flex flex-col overflow-hidden">
-      <div className="relative z-10 flex flex-col items-center text-center gap-6 pt-36 pb-10 px-6">
+    <section className="relative flex min-h-[100svh] flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-col items-center text-center gap-6 pt-32 pb-10 px-6 sm:pt-36">
         <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
           <span className="w-5 h-px bg-primary" />
-          AI Employee for Your Business
+          AI Sales Assistant for Your Store
         </div>
         <h1 className="font-serif font-medium text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.08] max-w-2xl">
           <span className="text-foreground block">Your business deserves</span>
           <span className="text-muted-foreground/40 block">an AI employee.</span>
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base leading-relaxed max-w-lg">
-          {BRAND_NAME} is an Agentic AI employee that talks to your customers, sells your
-          products, takes orders and helps run your business — 24/7.
+          {BRAND_NAME} gives your business a shareable storefront and an AI chat assistant that
+          answers questions, recommends products, and takes orders — 24/7.
         </p>
         <div className="flex flex-row items-center justify-center gap-3 flex-wrap pt-1">
           <a
@@ -188,11 +271,8 @@ function Hero() {
         </div>
       </div>
 
-      {/* Animated waveform */}
-      <div className="relative flex-1 w-full overflow-hidden pointer-events-none" style={{ minHeight: 160, maxHeight: 240 }}>
-        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-background to-transparent z-10" />
-        <AnimatedBars />
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
+      <div className="relative z-0 mt-12">
+        <HeroPreview />
       </div>
     </section>
   )
@@ -254,13 +334,13 @@ function Problem() {
 // ─── Features ─────────────────────────────────────────────────────────────────
 
 const features = [
-  { icon: Bot, title: 'AI Business Employee', desc: 'Represents your brand with verified facts, pricing, and operating rules.' },
-  { icon: MessageSquare, title: 'Customer Support', desc: 'Answers product queries, hours, and policies with zero delay.' },
+  { icon: Bot, title: 'AI Store Assistant', desc: 'Chats naturally with customers using your verified products, prices, and policies.' },
+  { icon: Store, title: 'Shareable Storefront', desc: 'One link for your catalogue, delivery info, and AI assistant — ready to share anywhere.' },
+  { icon: MessageSquare, title: 'Customer Support', desc: 'Answers product, delivery, and policy questions instantly, day or night.' },
   { icon: Sparkles, title: 'Product Recommendations', desc: 'Understands buyer preferences and recommends suitable items within their budget.' },
   { icon: ShoppingBag, title: 'Order Processing', desc: 'Collects item choices, variants, and delivery details into structured orders.' },
-  { icon: CreditCard, title: 'Secure Payments', desc: 'Generates secure payment links and verifies receipts automatically.' },
-  { icon: PhoneCall, title: 'Voice Calling', desc: 'Allows customers to call and speak with your AI employee naturally.' },
-  { icon: Globe, title: 'Multilingual Support', desc: 'Communicates fluently across multiple languages and dialects.' },
+  { icon: CreditCard, title: 'Secure Checkout', desc: 'Customers review and pay on a dedicated checkout page — never inside the chat.' },
+  { icon: Languages, title: 'Multilingual Chat', desc: 'Communicates fluently across multiple languages and dialects.' },
   { icon: LayoutDashboard, title: 'Operations Workspace', desc: 'Track live conversations, confirmed orders, and revenue from one unified dashboard.' },
 ]
 
@@ -335,20 +415,20 @@ function HowItWorks() {
   const steps = [
     {
       step: 1,
-      title: 'Add your business info',
-      desc: `Input your product catalogue, prices, delivery zones, and FAQs. ${BRAND_NAME} learns your exact inventory and never invents unapproved details.`,
+      title: 'Add your products and policies',
+      desc: `Input your catalogue, prices, delivery zones, and FAQs. ${BRAND_NAME} learns your exact inventory and never invents unapproved details.`,
       offset: false,
     },
     {
       step: 2,
-      title: 'Share your business link',
-      desc: `Direct customers from your social media bio, WhatsApp, or website to your ${BRAND_NAME} link. Your AI engages them immediately in natural conversation.`,
+      title: 'Share your store link',
+      desc: `One link for your social media bio, WhatsApp, or website. Customers browse your store and chat with your AI assistant immediately.`,
       offset: true,
     },
     {
       step: 3,
-      title: 'Confirm orders and get paid',
-      desc: `${BRAND_NAME} summarizes the order for the customer, sends a secure checkout link, and logs the confirmed sale to your dashboard the second payment arrives.`,
+      title: 'Customer checks out securely',
+      desc: `The AI prepares the order. The customer reviews and pays on a separate checkout page, and the sale lands in your dashboard when payment arrives.`,
       offset: false,
     },
   ]
@@ -400,7 +480,7 @@ const plans = [
       '1 product catalogue',
       'Up to 100 AI conversations/month',
       'Basic order processing',
-      'Plauda chat link',
+      'Plauda store link',
     ],
     cta: 'Get started free',
     href: '/register',
@@ -414,7 +494,7 @@ const plans = [
     features: [
       'Unlimited products',
       'Unlimited AI conversations',
-      'Order processing & payments',
+      'Order processing & checkout',
       'Live inbox & handoff',
       'Business info & FAQs',
       'Email support',
@@ -430,8 +510,8 @@ const plans = [
     desc: 'For high-volume stores with advanced needs.',
     features: [
       'Everything in Growth',
-      'Voice calling',
-      'Multilingual support',
+      'Custom domain',
+      'Multilingual chat support',
       'Team members & roles',
       'Advanced analytics',
       'Priority support',
@@ -554,7 +634,7 @@ function CTA() {
           <span className="text-muted-foreground/40 block">customers at 3am.</span>
         </h2>
         <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md mx-auto">
-          Set up your AI employee in minutes. Start turning conversations into confident checkouts.
+          Set up your storefront and AI assistant in minutes. Turn conversations into paid orders.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a

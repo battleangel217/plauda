@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import type { LucideIcon } from 'lucide-react'
 import {
-  BarChart3,
   Bot,
   ChevronRight,
   Clipboard,
-  Copy,
   Check,
   Inbox,
   LayoutDashboard,
@@ -20,20 +19,21 @@ import {
   Sun,
   UserRound,
   X,
-  Zap,
 } from 'lucide-react'
 import { BRAND_NAME, chatUrl } from '@/lib/brand'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
-const NAV_ITEMS = [
+type NavItem = { label: string; href: string; icon: LucideIcon; badge?: number }
+
+const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Inbox', href: '/inbox', icon: Inbox, badge: 3 },
   { label: 'Orders', href: '/orders', icon: ShoppingBag },
   { label: 'Catalogue', href: '/catalogue', icon: Package },
   { label: 'Business Info', href: '/business-info', icon: Bot },
   { label: 'Settings', href: '/settings', icon: Settings },
-] as const
+]
 
 function Logo() {
   return (
