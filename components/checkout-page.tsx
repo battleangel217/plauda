@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Check, Lock, Package, ShieldCheck, Sparkles, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,14 +20,57 @@ export function CheckoutPage({ order, merchant, customer }: CheckoutPageProps) {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const storeHref = `/store/${merchant.slug}`
+  const orderKey = `plauda-order:${order.id}`
+
+  useEffect(() => {
+    try {
+      if (order.status === 'paid' || window.localStorage.getItem(orderKey) === 'paid') {
+        setPaid(true)
+      }
+    } catch {
+      // Storage may be unavailable; the server-rendered status is still used.
+    }
+  }, [order.status, orderKey])
+
+  const markPaid = () => {
+    setPaid(true)
+
+    try {
+      window.localStorage.setItem(orderKey, 'paid')
+
+      const chatKey = `plauda-chat:${merchant.slug}`
+      const raw = window.localStorage.getItem(chatKey)
+      if (raw) {
+        const saved = JSON.parse(raw) as { order?: Order }
+        if (saved.order) {
+          window.localStorage.setItem(
+            chatKey,
+            JSON.stringify({ ...saved, order: { ...saved.order, status: 'paid' } }),
+          )
+        }
+      }
+    } catch {
+      // Persistence is a convenience; payment confirmation still shows.
+    }
+  }
 
   const pay = async () => {
     setProcessing(true)
     setError(null)
 
     try {
-      await payOrder(order.id)
-      setPaid(true)
+      const result = await payOrder(order.id)
+
+      if (result.payment.approvalUrl) {
+        window.location.assign(result.payment.approvalUrl)
+        return
+      }
+
+      if (result.payment.status === 'paid') {
+        markPaid()
+      } else {
+        setError('Payment is pending confirmation. Please refresh in a moment.')
+      }
     } catch {
       setError('Payment could not be completed. Please try again.')
     } finally {

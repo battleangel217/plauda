@@ -15,6 +15,7 @@ export function ChatPage({ merchantName, slug, messages, order }: ChatPageProps)
     <main className="flex h-[100svh] flex-col bg-background">
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background md:border-x">
         <ChatThread
+          key={slug}
           merchantName={merchantName}
           slug={slug}
           initialMessages={messages}

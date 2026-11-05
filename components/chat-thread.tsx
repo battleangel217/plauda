@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowUpRight, Check, CreditCard, Send, Sparkles, Users, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -149,7 +149,72 @@ export function ChatThread({
   const [error, setError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
   const [order, setOrder] = useState<Order>(initialOrder)
+  const [hydrated, setHydrated] = useState(false)
+  const storageKey = slug ? `plauda-chat:${slug}` : null
   const orderStatus: OrderStatus = demo === 3 ? 'paid' : order.status
+
+  useEffect(() => {
+    let nextMessages = initialMessages
+    let nextSessionId: string | undefined
+    let nextOrder = initialOrder
+
+    if (storageKey) {
+      try {
+        const raw = window.localStorage.getItem(storageKey)
+        if (raw) {
+          const saved = JSON.parse(raw) as {
+            messages?: ChatMessage[]
+            sessionId?: string
+            order?: Order
+          }
+          if (Array.isArray(saved.messages) && saved.messages.length > 0) {
+            nextMessages = saved.messages
+          }
+          if (saved.sessionId) nextSessionId = saved.sessionId
+          if (saved.order) nextOrder = saved.order
+        }
+      } catch {
+        // Malformed state is ignored so the chat can recover.
+      }
+    }
+
+    setMessages(nextMessages)
+    setSessionId(nextSessionId)
+    setOrder(nextOrder)
+    setDraft('')
+    setError(null)
+    setHuman(false)
+    setDemo(0)
+    setHydrated(true)
+  }, [storageKey, initialMessages, initialOrder])
+
+  useEffect(() => {
+    if (!storageKey || !hydrated) return
+
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ messages, sessionId, order }))
+    } catch {
+      // Storage may be unavailable; the chat still works for this visit.
+    }
+  }, [storageKey, hydrated, messages, sessionId, order])
+
+  const startNewChat = () => {
+    if (storageKey) {
+      try {
+        window.localStorage.removeItem(storageKey)
+      } catch {
+        // Ignore storage errors.
+      }
+    }
+
+    setMessages(initialMessages)
+    setSessionId(undefined)
+    setOrder(initialOrder)
+    setDraft('')
+    setError(null)
+    setHuman(false)
+    setDemo(0)
+  }
 
   const send = async () => {
     const text = draft.trim()
@@ -288,6 +353,10 @@ export function ChatThread({
             }}
           >
             Demo mode
+          </button>
+          <span>·</span>
+          <button className="underline" onClick={startNewChat}>
+            New chat
           </button>
         </p>
       </div>

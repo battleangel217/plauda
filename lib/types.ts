@@ -40,8 +40,9 @@ export interface ChatReply {
 export interface PaymentResult {
   order: Order
   payment: {
-    status: 'paid'
-    paidAt: string
-    paypalId: string
+    status: 'paid' | 'pending'
+    paidAt?: string
+    paypalId?: string
+    approvalUrl?: string
   }
 }

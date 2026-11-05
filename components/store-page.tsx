@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { Bot, Check, Clipboard, MessageSquare, Package, ShieldCheck, Sparkles, Truck } from 'lucide-react'
-import { ChatThread } from '@/components/chat-thread'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import type { Product, StoreSnapshot } from '@/lib/types'
 
 const money = (value: number) => `$${value.toFixed(2)}`
@@ -11,8 +10,8 @@ const stockFor = (product: Product) =>
   product.variants.length ? product.variants.reduce((sum, variant) => sum + variant.stock, 0) : 20
 
 export function StorePage({ store }: { store: StoreSnapshot }) {
-  const { merchant, products: catalogue, delivery, chat } = store
-  const [chatOpen, setChatOpen] = useState(false)
+  const { merchant, products: catalogue, delivery } = store
+  const chatHref = `/chat/${merchant.slug}`
   const [copied, setCopied] = useState(false)
 
   const copyStoreLink = async () => {
@@ -33,13 +32,24 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
             </div>
             <span className="font-serif text-lg font-semibold lowercase tracking-tight">Plauda</span>
           </a>
+          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+            <a href="/" className="transition-colors hover:text-foreground">
+              Home
+            </a>
+            <a href="#products" className="transition-colors hover:text-foreground">
+              Shop
+            </a>
+            <a href={chatHref} className="transition-colors hover:text-foreground">
+              Chat
+            </a>
+          </nav>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
               <ShieldCheck className="size-3.5" /> Secure checkout
             </span>
-            <Button size="sm" className="rounded-full lg:hidden" onClick={() => setChatOpen(true)}>
-              <MessageSquare className="mr-1.5 size-3.5" /> Chat with AI
-            </Button>
+            <a href={chatHref} className={buttonVariants({ size: 'default', className: 'h-9 rounded-full px-4 shadow-sm' })}>
+              <MessageSquare className="mr-1.5 size-4" /> Chat with AI
+            </a>
           </div>
         </div>
       </header>
@@ -56,6 +66,20 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">Storefront</p>
                   <h1 className="mt-1 font-serif text-3xl tracking-tight sm:text-4xl">{merchant.name}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">{merchant.tagline}</p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <a
+                      href={chatHref}
+                      className={buttonVariants({
+                        size: 'lg',
+                        className: 'h-10 w-full rounded-full px-5 text-sm shadow-sm sm:w-auto',
+                      })}
+                    >
+                      <MessageSquare className="mr-2 size-4" /> Chat with the AI assistant
+                    </a>
+                    <p className="text-xs text-muted-foreground">
+                      Ask about products, delivery, or an order.
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -70,7 +94,7 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
           </div>
         </section>
 
-        <section className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:py-12">
+        <section id="products" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 sm:px-6 lg:py-12">
           <div>
             <div className="flex items-end justify-between border-b border-border/60 pb-4">
               <div>
@@ -79,9 +103,6 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
                   {catalogue.length} products · prices in USD
                 </p>
               </div>
-              <a href="#assistant" className="hidden text-xs font-medium text-primary hover:underline lg:inline">
-                Ask the assistant
-              </a>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -104,21 +125,12 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
                       </div>
                       <span className="shrink-0 font-mono text-sm">{money(product.price)}</span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                      <span className="truncate pr-2">
+                    <div className="mt-3 flex items-center border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                      <span className="truncate">
                         {product.variants.length
                           ? `${product.variants.map((variant) => variant.name).join(' · ')} · ${stock} in stock`
                           : `${stock} in stock`}
                       </span>
-                      <button
-                        className="shrink-0 font-medium text-primary hover:underline lg:hidden"
-                        onClick={() => setChatOpen(true)}
-                      >
-                        Ask AI
-                      </button>
-                      <a href="#assistant" className="hidden shrink-0 font-medium text-primary hover:underline lg:inline">
-                        Ask AI
-                      </a>
                     </div>
                   </article>
                 )
@@ -139,18 +151,6 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
               ))}
             </div>
           </div>
-
-          <aside id="assistant" className="hidden scroll-mt-24 lg:block">
-            <div className="sticky top-24 h-[calc(100svh-8rem)] overflow-hidden rounded-[12px] border border-border/60">
-              <ChatThread
-                merchantName={merchant.name}
-                slug={merchant.slug}
-                initialMessages={chat.messages}
-                order={chat.order}
-                showFooter={false}
-              />
-            </div>
-          </aside>
         </section>
       </main>
 
@@ -164,6 +164,10 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
             <a href="/" className="text-foreground underline underline-offset-4">
               Plauda
             </a>
+            <span className="mx-1.5">·</span>
+            <a href="/login" className="transition-colors hover:text-foreground">
+              Merchant sign in
+            </a>
           </p>
           <button onClick={copyStoreLink} className="hidden items-center gap-1 hover:text-foreground sm:flex">
             {copied ? <Check className="size-3 text-emerald-600" /> : <Clipboard className="size-3" />}
@@ -171,26 +175,6 @@ export function StorePage({ store }: { store: StoreSnapshot }) {
           </button>
         </div>
       </footer>
-
-      <button
-        className="fixed bottom-5 right-4 z-40 flex h-12 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90 lg:hidden"
-        onClick={() => setChatOpen(true)}
-      >
-        <MessageSquare className="size-4" /> Chat with AI
-      </button>
-
-      {chatOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden">
-          <ChatThread
-            merchantName={merchant.name}
-            slug={merchant.slug}
-            initialMessages={chat.messages}
-            order={chat.order}
-            showFooter={false}
-            onClose={() => setChatOpen(false)}
-          />
-        </div>
-      )}
     </div>
   )
 }
