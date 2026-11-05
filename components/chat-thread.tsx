@@ -1,39 +1,95 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ArrowUpRight, Check, CreditCard, Send, Sparkles, Users, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowUpRight,
+  Check,
+  CreditCard,
+  Loader2,
+  Send,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { sendChatMessage } from '@/lib/api'
-import { demoOrder, initialMessages as demoMessages, merchant as demoMerchant } from '@/lib/mock'
-import type { ChatMessage, Order, OrderStatus } from '@/lib/types'
+import {
+  clearChatSession,
+  createConversation,
+  fetchMessages,
+  loadChatSession,
+  requestHandoff,
+  saveChatSession,
+  saveOrderSnapshot,
+  sendChatTurn,
+  streamConversation,
+  type ChatSession,
+} from '@/lib/chat-client'
+import type {
+  ApiMessage,
+  ChatTurnEvent,
+  ConversationStatus,
+  LiveEvent,
+  MessageRole,
+  Order,
+} from '@/lib/backend-types'
+import { deliveryText, formatMoney, orderStatusLabel } from '@/lib/order-utils'
+import { RichText } from '@/components/rich-text'
+import type { ApiError } from '@/lib/sse'
 
-const money = (value: number) => `$${value.toFixed(2)}`
-const statusLabel: Record<string, string> = {
-  pending_payment: 'Payment pending',
-  paid: 'Paid',
-  fulfilled: 'Fulfilled',
-  confirmed: 'Confirmed',
-  draft: 'Draft',
+type UiMessage = {
+  id: string
+  role: MessageRole
+  text: string
+  time: string
+}
+
+const conversationCopy: Record<
+  ConversationStatus,
+  { label: string; dot: string }
+> = {
+  ai: { label: 'AI assistant', dot: 'bg-emerald-500' },
+  handoff_requested: { label: 'Waiting for the team', dot: 'bg-amber-500' },
+  human_active: { label: 'Team member connected', dot: 'bg-blue-500' },
+  closed: { label: 'Conversation closed', dot: 'bg-muted-foreground' },
+}
+
+function formatTime(value?: string) {
+  if (!value) return 'Now'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Now'
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function toUiMessage(message: ApiMessage): UiMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    text: message.content,
+    time: formatTime(message.created_at),
+  }
 }
 
 function StatusBadge({ status }: { status: string }) {
   return (
     <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px] font-medium">
-      {statusLabel[status] ?? status}
+      {orderStatusLabel[status] ?? status}
     </Badge>
   )
 }
 
-function Message({ message }: { message: ChatMessage }) {
+function Message({ message }: { message: UiMessage }) {
   if (message.role === 'system' || message.role === 'tool') {
     return (
-      <div className="flex justify-center py-1">
+      <div className="flex shrink-0 justify-center py-1">
         <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] text-muted-foreground">
-          {message.role === 'tool' ? <Check className="size-3 text-[#3F6B4F]" /> : <CreditCard className="size-3" />}
+          {message.role === 'tool' ? (
+            <Check className="size-3 text-[#3F6B4F]" />
+          ) : (
+            <CreditCard className="size-3" />
+          )}
           {message.text}
         </div>
       </div>
@@ -41,9 +97,11 @@ function Message({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className={`flex ${message.role === 'customer' ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`flex shrink-0 ${message.role === 'customer' ? 'justify-end' : 'justify-start'}`}
+    >
       <div
-        className={`max-w-[85%] rounded-[10px] px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[88%] rounded-[10px] px-4 py-3 text-sm leading-relaxed ${
           message.role === 'customer'
             ? 'rounded-br-sm bg-primary text-primary-foreground'
             : 'rounded-bl-sm border bg-background'
@@ -52,10 +110,12 @@ function Message({ message }: { message: ChatMessage }) {
         {message.role === 'staff' && (
           <p className="mb-1 text-[10px] font-semibold text-muted-foreground">Team member</p>
         )}
-        {message.text}
+        <RichText text={message.text} />
         <p
           className={`mt-1 text-[10px] ${
-            message.role === 'customer' ? 'text-primary-foreground/60' : 'text-muted-foreground'
+            message.role === 'customer'
+              ? 'text-primary-foreground/60'
+              : 'text-muted-foreground'
           }`}
         >
           {message.time}
@@ -65,46 +125,70 @@ function Message({ message }: { message: ChatMessage }) {
   )
 }
 
-function OrderCard({ order, status }: { order: Order; status: OrderStatus }) {
+function OrderCard({
+  order,
+  merchantName,
+  slug,
+}: {
+  order: Order
+  merchantName: string
+  slug: string
+}) {
+  const canPay = order.status === 'pending_payment' && Boolean(order.approval_link)
+  const paid = order.status === 'paid' || order.status === 'fulfilled'
+
   return (
-    <Card className="overflow-hidden rounded-[10px]">
+    <Card className="shrink-0 overflow-hidden rounded-[10px]">
       <CardHeader className="flex flex-row items-start justify-between gap-3 border-b bg-background px-4 py-3">
-        <div>
+        <div className="min-w-0">
           <CardTitle className="text-sm">Your order</CardTitle>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {order.id}
+          </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {order.id} · {order.deliveryDetails}
+            {deliveryText(order.delivery_details)}
           </p>
         </div>
-        <StatusBadge status={status} />
+        <StatusBadge status={order.status} />
       </CardHeader>
       <CardContent className="space-y-3 p-4">
         <div className="space-y-2">
           {order.items.map((item, index) => (
-            <div key={`${item.nameSnapshot}-${index}`} className="flex justify-between text-sm">
-              <div>
-                <span className="font-medium">{item.nameSnapshot}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {item.variantSnapshot} · Qty {item.qty}
-                </span>
+            <div
+              key={`${item.product_id ?? item.name}-${index}`}
+              className="flex items-start justify-between gap-3 text-sm"
+            >
+              <div className="min-w-0">
+                <span className="font-medium">{item.name}</span>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.variant?.name ?? 'Standard'} · Qty {item.qty} ·{' '}
+                  {formatMoney(item.unit_price, order.currency)} each
+                </p>
               </div>
-              <span className="font-mono">{money(item.unitPrice)}</span>
             </div>
           ))}
         </div>
+
         <div className="border-t pt-3 text-xs">
           <div className="flex justify-between text-muted-foreground">
+            <span>Subtotal</span>
+            <span>{formatMoney(order.subtotal, order.currency)}</span>
+          </div>
+          <div className="mt-1 flex justify-between text-muted-foreground">
             <span>Delivery</span>
-            <span>{money(order.deliveryFee)}</span>
+            <span>{formatMoney(order.delivery_fee, order.currency)}</span>
           </div>
           <div className="mt-1 flex justify-between text-base font-semibold">
             <span>Total</span>
-            <span>{money(order.total)}</span>
+            <span>{formatMoney(order.total, order.currency)}</span>
           </div>
         </div>
-        {status === 'pending_payment' ? (
+
+        {canPay ? (
           <>
             <a
               href={`/checkout/${order.id}`}
+              onClick={() => saveOrderSnapshot(order, { slug, name: merchantName })}
               className="flex h-9 w-full items-center justify-center rounded-[6px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90"
             >
               Review &amp; pay
@@ -114,9 +198,22 @@ function OrderCard({ order, status }: { order: Order; status: OrderStatus }) {
               Payment opens on a secure checkout page.
             </p>
           </>
-        ) : (
+        ) : paid ? (
           <p className="flex items-center justify-center gap-2 text-sm font-medium text-[#3F6B4F]">
             <Check className="size-4" /> Payment confirmed
+          </p>
+        ) : order.status === 'confirmed' ? (
+          <p className="text-center text-[11px] text-muted-foreground">
+            Your order is confirmed. Ask the assistant to create your payment link when you are
+            ready.
+          </p>
+        ) : order.status === 'cancelled' || order.status === 'expired' ? (
+          <p className="text-center text-[11px] text-muted-foreground">
+            This order is no longer available.
+          </p>
+        ) : (
+          <p className="text-center text-[11px] text-muted-foreground">
+            The assistant is building your order.
           </p>
         )}
       </CardContent>
@@ -125,130 +222,381 @@ function OrderCard({ order, status }: { order: Order; status: OrderStatus }) {
 }
 
 interface ChatThreadProps {
-  merchantName?: string
-  slug?: string
-  initialMessages?: ChatMessage[]
-  order?: Order
+  merchantName: string
+  slug: string
   showFooter?: boolean
   onClose?: () => void
 }
 
 export function ChatThread({
-  merchantName = demoMerchant.name,
+  merchantName,
   slug,
-  initialMessages = demoMessages,
-  order: initialOrder = demoOrder,
   showFooter = true,
   onClose,
 }: ChatThreadProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [session, setSession] = useState<ChatSession | null>(null)
+  const [messages, setMessages] = useState<UiMessage[]>([])
+  const [order, setOrder] = useState<Order | null>(null)
+  const [status, setStatus] = useState<ConversationStatus>('ai')
   const [draft, setDraft] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const [human, setHuman] = useState(false)
-  const [demo, setDemo] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [waitingForReply, setWaitingForReply] = useState(false)
+  const [toolStatus, setToolStatus] = useState<string | null>(null)
+  const [handoffLoading, setHandoffLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
-  const [order, setOrder] = useState<Order>(initialOrder)
-  const [hydrated, setHydrated] = useState(false)
-  const storageKey = slug ? `plauda-chat:${slug}` : null
-  const orderStatus: OrderStatus = demo === 3 ? 'paid' : order.status
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+  const sessionRef = useRef<ChatSession | null>(null)
+  const systemCounter = useRef(0)
+
+  const conversationState = conversationCopy[status]
+  const canChat = Boolean(session) && status !== 'closed'
+  const placeholder =
+    status === 'closed'
+      ? 'This conversation is closed.'
+      : status === 'ai'
+        ? 'Ask about products, delivery, or your order…'
+        : 'Message the team…'
+
+  const updateSession = useCallback(
+    (patch: Partial<ChatSession>) => {
+      setSession((current) => {
+        if (!current) return current
+        const next = { ...current, ...patch }
+        saveChatSession(slug, next)
+        sessionRef.current = next
+        return next
+      })
+    },
+    [slug],
+  )
+
+  const applyOrder = useCallback(
+    (nextOrder: Order) => {
+      setOrder(nextOrder)
+      setSession((current) => {
+        if (!current) return current
+        const next = { ...current, order: nextOrder }
+        saveChatSession(slug, next)
+        sessionRef.current = next
+        return next
+      })
+      saveOrderSnapshot(nextOrder, { slug, name: merchantName })
+    },
+    [merchantName, slug],
+  )
 
   useEffect(() => {
-    let nextMessages = initialMessages
-    let nextSessionId: string | undefined
-    let nextOrder = initialOrder
+    sessionRef.current = session
+  }, [session])
 
-    if (storageKey) {
-      try {
-        const raw = window.localStorage.getItem(storageKey)
-        if (raw) {
-          const saved = JSON.parse(raw) as {
-            messages?: ChatMessage[]
-            sessionId?: string
-            order?: Order
+  useEffect(() => {
+    let cancelled = false
+
+    const beginNewConversation = async () => {
+      const created = await createConversation(slug)
+      if (cancelled) return
+      saveChatSession(slug, created)
+      sessionRef.current = created
+      setSession(created)
+      setStatus(created.status)
+      setOrder(created.order)
+      setMessages([])
+    }
+
+    const initialise = async () => {
+      setLoading(true)
+      setError(null)
+      setConnectionError(null)
+
+      const saved = loadChatSession(slug)
+      if (saved) {
+        sessionRef.current = saved
+        setSession(saved)
+        setStatus(saved.status)
+        setOrder(saved.order)
+
+        try {
+          const history = await fetchMessages(slug, saved)
+          if (cancelled) return
+          setMessages(history.map(toUiMessage))
+
+          const paymentMessage = history.find(
+            (message) =>
+              message.role === 'system' && message.meta?.kind === 'payment',
+          )
+          if (saved.order && paymentMessage) {
+            const messageOrderId =
+              typeof paymentMessage.meta.order_id === 'string'
+                ? paymentMessage.meta.order_id
+                : null
+            if (
+              (!messageOrderId || messageOrderId === saved.order.id) &&
+              saved.order.status !== 'paid' &&
+              saved.order.status !== 'fulfilled'
+            ) {
+              const paidOrder = { ...saved.order, status: 'paid' as const }
+              applyOrder(paidOrder)
+              saveChatSession(slug, { ...saved, order: paidOrder })
+            }
           }
-          if (Array.isArray(saved.messages) && saved.messages.length > 0) {
-            nextMessages = saved.messages
+        } catch (caught) {
+          if (cancelled) return
+          const apiError = caught as ApiError
+          if (apiError.status === 401 || apiError.status === 404) {
+            clearChatSession(slug)
+            try {
+              await beginNewConversation()
+            } catch {
+              setError('We could not start the chat. Please try again.')
+            }
+          } else {
+            setError('We could not load your conversation. Please refresh to try again.')
           }
-          if (saved.sessionId) nextSessionId = saved.sessionId
-          if (saved.order) nextOrder = saved.order
         }
-      } catch {
-        // Malformed state is ignored so the chat can recover.
+      } else {
+        try {
+          await beginNewConversation()
+        } catch {
+          if (!cancelled) setError('We could not start the chat. Please try again.')
+        }
       }
+
+      if (!cancelled) setLoading(false)
     }
 
-    setMessages(nextMessages)
-    setSessionId(nextSessionId)
-    setOrder(nextOrder)
-    setDraft('')
-    setError(null)
-    setHuman(false)
-    setDemo(0)
-    setHydrated(true)
-  }, [storageKey, initialMessages, initialOrder])
+    void initialise()
+
+    return () => {
+      cancelled = true
+    }
+  }, [slug, applyOrder])
 
   useEffect(() => {
-    if (!storageKey || !hydrated) return
+    if (!session) return
 
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify({ messages, sessionId, order }))
-    } catch {
-      // Storage may be unavailable; the chat still works for this visit.
-    }
-  }, [storageKey, hydrated, messages, sessionId, order])
+    const controller = new AbortController()
+    let active = true
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
 
-  const startNewChat = () => {
-    if (storageKey) {
-      try {
-        window.localStorage.removeItem(storageKey)
-      } catch {
-        // Ignore storage errors.
+    const handleLiveEvent = (event: LiveEvent) => {
+      if (event.type === 'message') {
+        const message = event.message
+        if (message.role !== 'staff' && message.role !== 'system') return
+        setMessages((current) =>
+          current.some((item) => item.id === message.id)
+            ? current
+            : [...current, toUiMessage(message)],
+        )
+        return
+      }
+
+      if (event.type === 'conversation_update') {
+        setStatus(event.conversation.status)
+        updateSession({ status: event.conversation.status })
+        return
+      }
+
+      if (event.type === 'order_update') {
+        applyOrder(event.order)
       }
     }
 
-    setMessages(initialMessages)
-    setSessionId(undefined)
-    setOrder(initialOrder)
-    setDraft('')
-    setError(null)
-    setHuman(false)
-    setDemo(0)
+    const connect = async () => {
+      try {
+        await streamConversation(slug, session, handleLiveEvent, controller.signal)
+        if (active) setConnectionError('Live updates paused. Reconnecting…')
+      } catch {
+        if (controller.signal.aborted) return
+        setConnectionError('Live updates paused. Reconnecting…')
+      }
+
+      if (!active) return
+      retryTimer = setTimeout(connect, 3000)
+    }
+
+    void connect()
+
+    return () => {
+      active = false
+      controller.abort()
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+  }, [slug, session?.conversationId, session?.visitorToken, applyOrder, updateSession])
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages, order, toolStatus, waitingForReply, status])
+
+  const syncHistory = async (currentSession: ChatSession) => {
+    try {
+      const history = await fetchMessages(slug, currentSession)
+      setMessages(history.map(toUiMessage))
+    } catch {
+      // Keep the streamed messages if the background sync fails.
+    }
   }
 
   const send = async () => {
     const text = draft.trim()
-    if (!text || streaming) return
+    if (!text || sending || !session || status === 'closed') return
 
-    setError(null)
     setDraft('')
-    setMessages((current) => [
-      ...current,
-      { id: `${Date.now()}-c`, role: 'customer', text, time: 'Now' },
-    ])
-    setStreaming(true)
+    setError(null)
+    setToolStatus(null)
+    setWaitingForReply(true)
+    setSending(true)
+
+    const customerMessage: UiMessage = {
+      id: `${Date.now()}-customer`,
+      role: 'customer',
+      text,
+      time: 'Now',
+    }
+    const assistantId = `${Date.now()}-assistant`
+    let assistantStarted = false
+
+    setMessages((current) => [...current, customerMessage])
+
+    const appendDelta = (delta: string) => {
+      if (!delta) return
+      setMessages((current) => {
+        const index = current.findIndex((message) => message.id === assistantId)
+        if (index === -1) {
+          return [
+            ...current,
+            { id: assistantId, role: 'agent', text: delta, time: 'Now' },
+          ]
+        }
+        const next = current.slice()
+        next[index] = { ...next[index], text: next[index].text + delta }
+        return next
+      })
+    }
+
+    const handleTurnEvent = (event: ChatTurnEvent) => {
+      if (event.type === 'delta') {
+        if (!assistantStarted) {
+          assistantStarted = true
+          setWaitingForReply(false)
+        }
+        appendDelta(event.text)
+        return
+      }
+
+      if (event.type === 'tool_status') {
+        setToolStatus(event.state === 'started' ? event.label : null)
+        return
+      }
+
+      if (event.type === 'order_update') {
+        applyOrder(event.order)
+        return
+      }
+
+      if (event.type === 'system') {
+        systemCounter.current += 1
+        setMessages((current) => [
+          ...current,
+          {
+            id: `${Date.now()}-system-${systemCounter.current}`,
+            role: 'system',
+            text: event.text,
+            time: 'Now',
+          },
+        ])
+        return
+      }
+
+      if (event.type === 'error') {
+        setError(event.message)
+      }
+    }
 
     try {
-      if (!slug) throw new Error('Store is not available')
-      const reply = await sendChatMessage(slug, text, sessionId)
-      setSessionId(reply.sessionId)
-      if (reply.order) setOrder(reply.order)
-      setMessages((current) => [...current, ...reply.messages])
-    } catch {
-      setError('Something went wrong. Please try again.')
-      setMessages((current) => [
-        ...current,
-        {
-          id: `${Date.now()}-a`,
-          role: 'agent',
-          text: 'I’m sorry, I couldn’t reach the assistant just now. Please try again in a moment.',
-          time: 'Now',
-        },
-      ])
+      await sendChatTurn(slug, session, text, handleTurnEvent)
+    } catch (caught) {
+      const apiError = caught as ApiError
+      if (apiError.status === 429) {
+        setError('You are sending messages too quickly. Please wait a moment and try again.')
+      } else if (apiError.status === 401 || apiError.status === 404) {
+        setError('This conversation has expired. Start a new chat to continue.')
+      } else {
+        setError(apiError.message || 'The assistant could not reply. Please try again.')
+      }
     } finally {
-      setStreaming(false)
+      setSending(false)
+      setWaitingForReply(false)
+      setToolStatus(null)
+    }
+
+    await syncHistory(session)
+  }
+
+  const requestHuman = async () => {
+    if (!session || status !== 'ai' || handoffLoading) return
+
+    setHandoffLoading(true)
+    setError(null)
+    try {
+      const conversation = await requestHandoff(slug, session)
+      updateSession({ status: conversation.status })
+      setStatus(conversation.status)
+      await syncHistory(session)
+    } catch (caught) {
+      const apiError = caught as ApiError
+      setError(apiError.message || 'We could not reach the team. Please try again.')
+    } finally {
+      setHandoffLoading(false)
     }
   }
+
+  const startNewChat = async () => {
+    if (creating) return
+
+    setCreating(true)
+    setError(null)
+    setConnectionError(null)
+    setToolStatus(null)
+    setWaitingForReply(false)
+    clearChatSession(slug)
+    setMessages([])
+    setSession(null)
+    setOrder(null)
+    setStatus('ai')
+    setDraft('')
+
+    try {
+      const created = await createConversation(slug)
+      saveChatSession(slug, created)
+      sessionRef.current = created
+      setSession(created)
+      setStatus(created.status)
+      setOrder(created.order)
+    } catch {
+      setError('We could not start a new chat. Please try again.')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const humanButtonLabel =
+    status === 'ai'
+      ? handoffLoading
+        ? 'Connecting…'
+        : 'Talk to a human'
+      : status === 'handoff_requested'
+        ? 'Team notified'
+        : status === 'human_active'
+          ? 'Team connected'
+          : 'Closed'
+
+  const headerStatus = useMemo(() => {
+    if (loading) return { label: 'Connecting…', dot: 'bg-amber-500' }
+    return conversationState
+  }, [conversationState, loading])
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -258,16 +606,32 @@ export function ChatThread({
             <Sparkles className="size-4" strokeWidth={1.5} />
           </div>
           <div>
-            <p className="text-sm font-semibold">{merchantName}</p>
+            <a
+              href={`/store/${slug}`}
+              className="text-sm font-semibold hover:underline"
+            >
+              {merchantName}
+            </a>
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-500" /> AI assistant
+              <span className={`size-1.5 rounded-full ${headerStatus.dot}`} />{' '}
+              {headerStatus.label}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => setHuman(true)}>
-            <Users className="mr-1.5 size-3.5" />
-            <span className="hidden sm:inline">Talk to a human</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={requestHuman}
+            disabled={!session || status !== 'ai' || handoffLoading}
+          >
+            {handoffLoading ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Users className="mr-1.5 size-3.5" />
+            )}
+            <span className="hidden sm:inline">{humanButtonLabel}</span>
             <span className="sm:hidden">Human</span>
           </Button>
           {onClose && (
@@ -282,80 +646,136 @@ export function ChatThread({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-5">
-        {human && (
-          <div className="rounded-[6px] border border-primary/20 bg-primary/5 px-3 py-2 text-center text-xs text-primary">
-            A person from {merchantName} is taking over
-          </div>
-        )}
-
-        {messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-
-        <OrderCard order={order} status={orderStatus} />
-
-        {streaming && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="rounded-[10px] rounded-bl-sm border bg-background px-4 py-3">
-              <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-              <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:120ms]" />
-              <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:240ms]" />
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div className="flex min-h-full flex-col gap-3">
+          {status === 'handoff_requested' && (
+            <div className="rounded-[6px] border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-800 dark:text-amber-300">
+              A person from {merchantName} has been notified and will reply here.
             </div>
-          </div>
-        )}
+          )}
 
-        {human && (
-          <Card className="border-dashed">
-            <CardContent className="p-4">
-              <p className="mb-3 text-sm font-medium">No one is available right now</p>
-              <div className="flex gap-2">
-                <Input placeholder="Your name" />
-                <Input placeholder="Email or phone" />
-                <Button>Send</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          {status === 'human_active' && (
+            <div className="rounded-[6px] border border-blue-500/25 bg-blue-500/10 px-3 py-2 text-center text-xs text-blue-800 dark:text-blue-300">
+              A person from {merchantName} is in this chat.
+            </div>
+          )}
+
+          {status === 'closed' && (
+            <div className="rounded-[6px] border bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
+              This conversation is closed. Start a new chat to keep talking.
+            </div>
+          )}
+
+          {connectionError && !loading && (
+            <div className="rounded-[6px] border border-border bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground">
+              {connectionError}
+            </div>
+          )}
+
+          {loading || creating ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 size-4 animate-spin" />
+              {creating ? 'Starting a new chat…' : 'Opening chat…'}
+            </div>
+          ) : (
+            <>
+              {messages.length === 0 && (
+                <div className="flex justify-start">
+                  <div className="max-w-[88%] rounded-[10px] rounded-bl-sm border bg-background px-4 py-3 text-sm leading-relaxed">
+                    <p>
+                      Hi! I’m the AI assistant for {merchantName}. Ask me about products, delivery,
+                      or an order.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((message) => (
+                <Message key={message.id} message={message} />
+              ))}
+
+              {order && <OrderCard order={order} merchantName={merchantName} slug={slug} />}
+
+              {toolStatus && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-[11px] text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" />
+                    {toolStatus}…
+                  </div>
+                </div>
+              )}
+
+              {waitingForReply && !toolStatus && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="rounded-[10px] rounded-bl-sm border bg-background px-4 py-3">
+                    <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
+                    <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:120ms]" />
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:240ms]" />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          <div ref={endRef} />
+        </div>
       </div>
 
       <div className="border-t bg-background px-4 py-3">
-        {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
+        {error && (
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-destructive">
+            <span>{error}</span>
+            {(!session || !canChat) && (
+              <button className="underline" onClick={startNewChat} disabled={creating}>
+                Try again
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex items-end gap-2 rounded-[10px] border bg-background p-2 shadow-sm">
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value.slice(0, 500))}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+              if (
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing &&
+                event.keyCode !== 229
+              ) {
                 event.preventDefault()
-                send()
+                void send()
               }
             }}
-            placeholder="Ask about products, delivery, or your order…"
+            placeholder={placeholder}
             className="min-h-10 resize-none border-0 p-2 shadow-none focus-visible:ring-0"
             maxLength={500}
+            disabled={!canChat || loading || creating}
           />
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] text-muted-foreground">{draft.length}/500</span>
-            <Button size="icon" className="size-9 rounded-[6px]" disabled={streaming} onClick={send} aria-label="Send message">
-              <Send className="size-4" />
+            <Button
+              size="icon"
+              className="size-9 rounded-[6px]"
+              disabled={!canChat || sending || loading || creating || !draft.trim()}
+              onClick={() => void send()}
+              aria-label="Send message"
+            >
+              {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </div>
         </div>
         <p className="mt-2 flex items-center justify-center gap-1 text-center text-[10px] text-muted-foreground">
-          {showFooter && <><a href="/" className="underline">Powered by Plauda</a><span>·</span></>}
-          <button
-            className="underline"
-            onClick={() => {
-              const next = (demo + 1) % 5
-              setDemo(next)
-              setHuman(next === 4)
-            }}
-          >
-            Demo mode
-          </button>
-          <span>·</span>
-          <button className="underline" onClick={startNewChat}>
+          {showFooter && (
+            <>
+              <a href="/" className="underline">
+                Powered by Plauda
+              </a>
+              <span>·</span>
+            </>
+          )}
+          <button className="underline" onClick={startNewChat} disabled={creating}>
             New chat
           </button>
         </p>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import {
   Bot,
@@ -10,6 +10,7 @@ import {
   Check,
   Inbox,
   LayoutDashboard,
+  LogOut,
   Menu,
   Moon,
   Package,
@@ -17,10 +18,11 @@ import {
   ShoppingBag,
   Sparkles,
   Sun,
-  UserRound,
   X,
 } from 'lucide-react'
 import { BRAND_NAME } from '@/lib/brand'
+import { clearAuth, getStoredUser, getToken, saveAuth } from '@/lib/auth-client'
+import type { AuthUser, DashboardSummary } from '@/lib/backend-types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -28,7 +30,7 @@ type NavItem = { label: string; href: string; icon: LucideIcon; badge?: number }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Inbox', href: '/inbox', icon: Inbox, badge: 3 },
+  { label: 'Inbox', href: '/inbox', icon: Inbox },
   { label: 'Orders', href: '/orders', icon: ShoppingBag },
   { label: 'Catalogue', href: '/catalogue', icon: Package },
   { label: 'Business Info', href: '/business-info', icon: Bot },
@@ -48,9 +50,13 @@ function Logo() {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [dark, setDark] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [handoffCount, setHandoffCount] = useState(0)
+  const [greeting, setGreeting] = useState('Welcome back')
 
   // Sync dark mode
   useEffect(() => {
@@ -62,19 +68,80 @@ export function Shell({ children }: { children: React.ReactNode }) {
     setMobile(false)
   }, [pathname])
 
-  const storePath = '/store/luma-goods'
-  const [storeLink, setStoreLink] = useState(storePath)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setStoreLink(`${window.location.origin}${storePath}`)
-    }
+    const hour = new Date().getHours()
+    setGreeting(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening')
   }, [])
+
+  useEffect(() => {
+    const stored = getStoredUser()
+    if (stored) setUser(stored)
+
+    const token = getToken()
+    if (!token) {
+      clearAuth()
+      router.replace('/login?expired=1')
+      return
+    }
+
+    let cancelled = false
+    fetch('/api/auth/me', {
+      headers: { authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unauthorized')
+        return (await response.json()) as AuthUser
+      })
+      .then((nextUser) => {
+        if (cancelled) return
+        setUser(nextUser)
+        saveAuth(token, nextUser)
+      })
+      .catch(() => {
+        if (cancelled) return
+        clearAuth()
+        router.replace('/login?expired=1')
+      })
+
+    fetch('/api/merchant/dashboard/summary', {
+      headers: { authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then((response) => (response.ok ? (response.json() as Promise<DashboardSummary>) : null))
+      .then((summary) => {
+        if (!cancelled && summary) setHandoffCount(summary.handoff_requests)
+      })
+      .catch(() => {
+        // The badge is optional; the page still works if the summary is unavailable.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  const storePath = user ? `/store/${user.merchant.slug}` : '#'
+  const storeLink = user
+    ? typeof window !== 'undefined'
+      ? `${window.location.origin}${storePath}`
+      : storePath
+    : ''
+
   const copyLink = async () => {
-    const full = typeof window !== 'undefined' ? `${window.location.origin}${storePath}` : storeLink
-    await navigator.clipboard?.writeText(full)
+    if (!storeLink) return
+    await navigator.clipboard?.writeText(storeLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const signOut = () => {
+    clearAuth()
+    router.replace('/login')
+  }
+
+  const displayName = user?.email.split('@')[0] ?? ''
+  const merchantName = user?.merchant.name ?? ''
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
@@ -112,7 +179,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="mt-8 flex flex-col gap-0.5" aria-label="Main navigation">
-          {NAV_ITEMS.map(({ label, href, icon: Icon, badge }) => {
+          {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+            const badge = label === 'Inbox' && handoffCount > 0 ? handoffCount : undefined
             const active = isActive(href)
             return (
               <a
@@ -150,10 +218,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             href={storePath}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline font-mono truncate"
+            className="mt-2 flex items-center gap-1 truncate font-mono text-xs text-primary hover:underline"
             suppressHydrationWarning
           >
-            {storeLink}
+            {storeLink || 'Loading store…'}
             <ChevronRight className="size-3 flex-shrink-0" />
           </a>
         </div>
@@ -174,9 +242,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Menu className="size-5" />
             </Button>
             <div className="hidden items-center gap-2 text-sm font-medium lg:flex">
-              Good morning, Alex
+              <span className="max-w-[180px] truncate">
+                {displayName ? `${greeting}, ${displayName}` : greeting}
+              </span>
               <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground text-xs">Luma Goods</span>
+              <span className="max-w-[180px] truncate text-xs text-muted-foreground">
+                {merchantName || 'Loading store…'}
+              </span>
             </div>
           </div>
 
@@ -203,8 +275,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
-            <Button variant="ghost" size="icon" aria-label="Profile">
-              <UserRound className="size-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Sign out"
+              title={user?.email ?? 'Sign out'}
+              onClick={signOut}
+            >
+              <LogOut className="size-4" />
             </Button>
           </div>
         </header>

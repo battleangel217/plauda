@@ -1,38 +1,494 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-
-import { ArrowLeft, Check, ChevronRight, ShoppingBag } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Package,
+  ShoppingBag,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { merchantJson } from '@/lib/merchant-client'
+import type {
+  AuditEntry,
+  AuditPage,
+  MerchantOrder,
+  MerchantOrderPage,
+  MerchantOrderSummary,
+  OrderStatus,
+} from '@/lib/backend-types'
+import { deliveryText, formatMoney, orderStatusLabel } from '@/lib/order-utils'
 
-type Status = 'pending_payment' | 'paid' | 'fulfilled' | 'cancelled' | 'expired'
-type RefundStatus = 'executed' | 'pending_approval' | 'rejected'
-type Order = { id: string; customer: string; email: string; items: string[]; total: number; status: Status; created: string; currency: string; paidAt: string; paypal: string; capture: string; fee: number; delivery: string; address: string; refundCap: number; refunds: { amount: number; status: RefundStatus; time: string }[]; audit: { event: string; trigger: string; amount?: number; result: string; time: string }[] }
+type Filter = 'all' | OrderStatus
 
-const orders: Order[] = [
-  { id: 'VOX-1057', customer: 'Elena Rossi', email: 'elena@example.com', items: ['Everyday Tote × 1', 'Ceramic Travel Mug × 2'], total: 94, status: 'paid', created: 'Today, 11:42 AM', currency: 'USD', paidAt: 'Today, 11:43 AM', paypal: '8TQ92145K', capture: '6GH1209A', fee: 3.03, delivery: 'Standard delivery', address: '241 Valencia St, San Francisco, CA 94103', refundCap: 94, refunds: [], audit: [{ event: 'create_link', trigger: 'agent', amount: 94, result: 'checkout link created', time: 'Today, 11:42 AM' }, { event: 'mark_paid', trigger: 'webhook', amount: 94, result: 'payment captured', time: 'Today, 11:43 AM' }] },
-  { id: 'VOX-1056', customer: 'Maya Chen', email: 'maya@example.com', items: ['Everyday Tote × 1'], total: 38, status: 'pending_payment', created: 'Today, 10:18 AM', currency: 'USD', paidAt: '—', paypal: '4PL82190M', capture: '—', fee: 0, delivery: 'Express delivery', address: '18 Clement St, San Francisco, CA 94118', refundCap: 0, refunds: [], audit: [{ event: 'create_link', trigger: 'agent', amount: 38, result: 'awaiting payment', time: 'Today, 10:18 AM' }] },
-  { id: 'VOX-1055', customer: 'Jordan Lee', email: 'jordan@example.com', items: ['Ceramic Travel Mug × 1'], total: 28, status: 'fulfilled', created: 'Yesterday, 4:02 PM', currency: 'USD', paidAt: 'Yesterday, 4:03 PM', paypal: '5RM28014P', capture: '6RM28014P', fee: 1.11, delivery: 'Standard delivery', address: '99 2nd Ave, New York, NY 10003', refundCap: 28, refunds: [{ amount: 8, status: 'executed', time: 'Yesterday, 5:22 PM' }], audit: [{ event: 'mark_paid', trigger: 'webhook', amount: 28, result: 'payment captured', time: 'Yesterday, 4:03 PM' }, { event: 'receipt', trigger: 'staff', result: 'order fulfilled', time: 'Yesterday, 4:40 PM' }, { event: 'refund', trigger: 'staff', amount: 8, result: 'refund executed', time: 'Yesterday, 5:22 PM' }] },
-  { id: 'VOX-1054', customer: 'Avery Patel', email: 'avery@example.com', items: ['Everyday Tote × 2'], total: 76, status: 'paid', created: 'Yesterday, 1:30 PM', currency: 'USD', paidAt: 'Yesterday, 1:32 PM', paypal: '1XY55211A', capture: '2XY55211A', fee: 2.5, delivery: 'Standard delivery', address: '412 8th St, Brooklyn, NY 11215', refundCap: 76, refunds: [{ amount: 100, status: 'pending_approval', time: 'Yesterday, 2:11 PM' }], audit: [{ event: 'mark_paid', trigger: 'webhook', amount: 76, result: 'payment captured', time: 'Yesterday, 1:32 PM' }, { event: 'refund', trigger: 'staff', amount: 100, result: 'approval requested', time: 'Yesterday, 2:11 PM' }] },
-  { id: 'VOX-1053', customer: 'Noah Williams', email: 'noah@example.com', items: ['Ceramic Travel Mug × 2'], total: 56, status: 'cancelled', created: 'Nov 1, 9:04 AM', currency: 'USD', paidAt: 'Nov 1, 9:05 AM', paypal: '7AB31011K', capture: '7AB31011K', fee: 1.92, delivery: 'Standard delivery', address: '7 King St, Austin, TX 78701', refundCap: 56, refunds: [{ amount: 56, status: 'executed', time: 'Nov 1, 9:24 AM' }], audit: [{ event: 'refund', trigger: 'staff', amount: 56, result: 'refund executed', time: 'Nov 1, 9:24 AM' }, { event: 'expire', trigger: 'system', result: 'order cancelled', time: 'Nov 1, 9:25 AM' }] },
-  { id: 'VOX-1052', customer: 'Sam Rivera', email: 'sam@example.com', items: ['Everyday Tote × 1'], total: 38, status: 'expired', created: 'Oct 31, 6:52 PM', currency: 'USD', paidAt: '—', paypal: '3KD44210Q', capture: '—', fee: 0, delivery: 'Standard delivery', address: '112 Mission St, San Francisco, CA 94105', refundCap: 0, refunds: [], audit: [{ event: 'create_link', trigger: 'agent', amount: 38, result: 'checkout link created', time: 'Oct 31, 6:52 PM' }, { event: 'expire', trigger: 'system', result: 'checkout expired', time: 'Nov 1, 6:52 PM' }] },
-  { id: 'VOX-1051', customer: 'Priya Shah', email: 'priya@example.com', items: ['Ceramic Travel Mug × 1'], total: 31, status: 'paid', created: 'Oct 31, 3:45 PM', currency: 'EUR', paidAt: 'Oct 31, 3:46 PM', paypal: '9ZZ81220F', capture: '9ZZ81220F', fee: 1.26, delivery: 'Standard delivery', address: 'Kantstrasse 18, 10623 Berlin, Germany', refundCap: 31, refunds: [], audit: [{ event: 'mark_paid', trigger: 'webhook', amount: 31, result: 'payment captured · €31 converted to $33.50', time: 'Oct 31, 3:46 PM' }] },
-  { id: 'VOX-1050', customer: 'Marcus Green', email: 'marcus@example.com', items: ['Everyday Tote × 1', 'Ceramic Travel Mug × 1'], total: 72, status: 'fulfilled', created: 'Oct 30, 11:12 AM', currency: 'USD', paidAt: 'Oct 30, 11:13 AM', paypal: '2LM81221R', capture: '2LM81221R', fee: 2.39, delivery: 'Express delivery', address: '22 Pine St, Portland, OR 97205', refundCap: 72, refunds: [], audit: [{ event: 'receipt', trigger: 'staff', result: 'order fulfilled', time: 'Oct 30, 3:20 PM' }] },
-  { id: 'VOX-1049', customer: 'Grace Kim', email: 'grace@example.com', items: ['Everyday Tote × 1'], total: 38, status: 'paid', created: 'Oct 29, 8:44 AM', currency: 'USD', paidAt: 'Oct 29, 8:45 AM', paypal: '4QW18210B', capture: '4QW18210B', fee: 1.4, delivery: 'Standard delivery', address: '81 Lakeview Dr, Chicago, IL 60611', refundCap: 38, refunds: [], audit: [{ event: 'mark_paid', trigger: 'webhook', amount: 38, result: 'payment captured', time: 'Oct 29, 8:45 AM' }] },
-  { id: 'VOX-1048', customer: 'Maya Chen', email: 'maya@example.com', items: ['Everyday Tote × 1', 'Ceramic Travel Mug × 1'], total: 72, status: 'pending_payment', created: 'Oct 28, 2:14 PM', currency: 'USD', paidAt: '—', paypal: '8TQ92145K', capture: '—', fee: 0, delivery: 'Standard delivery', address: '18 Clement St, San Francisco, CA 94118', refundCap: 0, refunds: [], audit: [{ event: 'create_link', trigger: 'agent', amount: 72, result: 'awaiting payment', time: 'Oct 28, 2:14 PM' }] },
+const filters: Array<{ value: Filter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'pending_payment', label: 'Pending payment' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'fulfilled', label: 'Fulfilled' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'expired', label: 'Expired' },
 ]
 
-const labels: Record<Status, string> = { pending_payment: 'Pending payment', paid: 'Paid', fulfilled: 'Fulfilled', cancelled: 'Cancelled', expired: 'Expired' }
-const money = (n: number) => `$${n.toFixed(2)}`
-function StatusBadge({ status }: { status: Status }) { return <Badge variant="secondary" className="rounded-full px-2 py-1 text-[11px]">{labels[status]}</Badge> }
-function PageShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) { return <div className="min-h-screen bg-background"><div className="p-0">{onBack && <div className="flex h-14 items-center border-b px-4 md:px-8"><Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to orders"><ArrowLeft className="size-4" /></Button><span className="ml-2 text-sm font-medium">Order detail</span></div>}{children}</div></div> }
+const statusColors: Record<string, string> = {
+  paid: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+  fulfilled: 'bg-blue-500/10 text-blue-700 border-blue-500/20',
+  pending_payment: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+  cancelled: 'bg-red-500/10 text-red-600 border-red-500/20',
+  expired: 'bg-muted text-muted-foreground border-border',
+  confirmed: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+  draft: 'bg-muted text-muted-foreground border-border',
+}
 
-export function OrdersPage({ detailId }: { detailId?: string }) { const [filter, setFilter] = useState<'all' | Status>('all'); const order = orders.find((item) => item.id === detailId); if (order) return <OrderDetail order={order} />; const visible = useMemo(() => filter === 'all' ? orders : orders.filter((item) => item.status === filter), [filter]); const today = orders.filter((item) => item.created.startsWith('Today')); return <PageShell><main className="mx-auto max-w-7xl p-4 md:p-8"><div className="flex flex-col gap-4 border-b pb-6 md:flex-row md:items-end md:justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Commerce / Orders</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">Orders</h1><p className="mt-1 text-sm text-muted-foreground">Payments, fulfilment, and refunds in one place.</p></div><p className="font-mono text-xs text-muted-foreground">Today: {money(today.reduce((sum, item) => sum + item.total, 0))} revenue, {today.length} orders</p></div><div className="flex gap-1 overflow-x-auto border-b py-4">{[['all','All'],...Object.entries(labels)].map(([key,label]) => <button key={key} onClick={() => setFilter(key as 'all' | Status)} className={`whitespace-nowrap rounded-[6px] px-3 py-2 text-xs ${filter === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>{label} <span className="ml-1 font-mono opacity-70">{key === 'all' ? orders.length : orders.filter((item) => item.status === key).length}</span></button>)}</div><div className="mt-5 overflow-x-auto rounded-[6px] border"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b bg-muted/30 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Order ID</th><th className="px-4 py-3 font-medium">Customer</th><th className="px-4 py-3 font-medium">Items</th><th className="px-4 py-3 font-medium">Total</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Created</th></tr></thead><tbody>{visible.map((item) => <tr key={item.id} className="cursor-pointer border-b last:border-0 hover:bg-muted/30" onClick={() => { window.location.href = `/orders/${item.id}` }}><td className="px-4 py-3 font-mono text-xs">{item.id}</td><td className="px-4 py-3"><p className="font-medium">{item.customer}</p><p className="text-xs text-muted-foreground">{item.email}</p></td><td className="px-4 py-3 text-muted-foreground">{item.items.length}</td><td className="px-4 py-3 font-mono">{money(item.total)}</td><td className="px-4 py-3"><StatusBadge status={item.status} /></td><td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.created}</td></tr>)}</tbody></table></div></main></PageShell> }
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+        statusColors[status] ?? 'bg-muted text-muted-foreground border-border'
+      }`}
+    >
+      {orderStatusLabel[status] ?? status}
+    </span>
+  )
+}
 
-function OrderDetail({ order }: { order: Order }) { const [refundOpen, setRefundOpen] = useState(false); const [amount, setAmount] = useState(''); const [refunds, setRefunds] = useState(order.refunds); const value = Number(amount) || 0; const overCap = value > order.refundCap; const submitRefund = () => { if (!value) return; setRefunds((current) => [...current, { amount: value, status: overCap ? 'pending_approval' : 'executed', time: 'Just now' }]); setAmount(''); setRefundOpen(false) }; return <PageShell onBack={() => { window.location.href = '/orders' }}><main className="mx-auto max-w-7xl p-4 md:p-8"><div className="flex flex-col gap-4 border-b pb-6 md:flex-row md:items-end md:justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Order detail</p><h1 className="mt-2 font-mono text-2xl font-semibold">{order.id}</h1><div className="mt-2 flex items-center gap-2"><StatusBadge status={order.status} /><span className="text-sm text-muted-foreground">{order.customer}</span></div></div><div className="flex gap-2"><a href="/inbox" className="inline-flex h-9 items-center rounded-[6px] border px-3 text-sm">View conversation <ChevronRight className="ml-1 size-4" /></a>{order.status === 'paid' && <Button size="sm">Mark fulfilled</Button>}</div></div><div className="grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_360px]"><div className="space-y-6"><Receipt order={order} /><section className="grid gap-4 border-t pt-5 sm:grid-cols-2"><div><p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Delivery details</p><p className="text-sm">{order.delivery}</p><p className="mt-1 text-sm text-muted-foreground">{order.address}</p></div><div><p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Customer</p><p className="text-sm font-medium">{order.customer}</p><p className="mt-1 text-sm text-muted-foreground">{order.email}</p></div></section></div><div className="divide-y border-y"><section className="py-5"><SectionTitle>Payment record</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-3 font-mono text-xs"><Record label="PayPal order ID" value={order.paypal} /><Record label="Capture ID" value={order.capture} /><Record label="Status" value={order.status === 'paid' || order.status === 'fulfilled' ? 'COMPLETED' : 'PENDING'} /><Record label="Paid at" value={order.paidAt} /><Record label="Gross amount" value={`${order.currency} ${order.total.toFixed(2)}`} /><Record label="PayPal fee" value={`USD ${order.fee.toFixed(2)}`} /><Record label="Net amount" value={`USD ${(order.total - order.fee).toFixed(2)}`} /></div>{order.currency !== 'USD' && <p className="mt-4 border-l-2 pl-3 font-mono text-[11px] text-muted-foreground">Currency conversion: payer paid €31.00; settlement received USD $33.50.</p>}</section><section className="py-5"><div className="flex items-start justify-between"><div><SectionTitle>Refund</SectionTitle><p className="font-mono text-xs text-muted-foreground">Merchant cap: {money(order.refundCap)}</p></div><Button variant="outline" size="sm" onClick={() => setRefundOpen(true)}>Refund</Button></div>{refunds.length > 0 && <div className="mt-4 flex flex-col gap-3">{refunds.map((refund, index) => <div key={`${refund.time}-${index}`} className="flex items-center justify-between border-t pt-3 font-mono text-xs"><span>{money(refund.amount)} · {refund.time}</span><span className="flex items-center gap-2">{refund.status}{refund.status === 'pending_approval' && <><Button variant="outline" size="sm" className="h-7 px-2">Approve</Button><Button variant="outline" size="sm" className="h-7 px-2">Reject</Button></>}</span></div>)}</div>}</section><section className="py-5"><SectionTitle>Audit log</SectionTitle><div className="mt-3 flex flex-col">{order.audit.map((event, index) => <div key={`${event.event}-${index}`} className="border-l border-border pb-4 pl-4 font-mono text-[11px] last:pb-0"><div className="flex flex-wrap gap-x-2"><span className="font-semibold">{event.event}</span><span className="text-muted-foreground">{event.trigger}</span><span>{event.amount ? money(event.amount) : ''}</span></div><p className="mt-1 text-muted-foreground">{event.result} · {event.time}</p></div>)}</div></section></div></div></main><div>{refundOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"><Card className="w-full max-w-md"><CardHeader><CardTitle>Refund {order.id}</CardTitle><p className="text-sm text-muted-foreground">Available cap: {money(order.refundCap)}</p></CardHeader><CardContent className="space-y-4"><Input autoFocus type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={(event) => setAmount(event.target.value)} />{overCap && <p className="border-l-2 border-primary pl-3 text-sm">Over your cap of {money(order.refundCap)}. This will create an approval request</p>}<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setRefundOpen(false)}>Cancel</Button><Button onClick={submitRefund}>{overCap ? 'Request approval' : 'Refund now'}</Button></div></CardContent></Card></div>}</div></PageShell> }
-function Receipt({ order }: { order: Order }) { return <div className="relative overflow-hidden border border-dashed bg-muted/10 p-6 font-mono text-sm before:absolute before:-top-2 before:left-0 before:h-4 before:w-full before:bg-[radial-gradient(circle_at_6px_0,transparent_5px,currentColor_5.5px)] before:text-border"><div className="flex justify-between border-b border-dashed pb-4"><span>LUMA GOODS</span><span>{order.id}</span></div><div className="flex flex-col gap-3 py-5">{order.items.map((item) => <div key={item} className="flex justify-between gap-3"><span>{item}</span><span>{money(order.total / order.items.length)}</span></div>)}</div><div className="border-t border-dashed pt-4"><div className="flex justify-between"><span>Subtotal</span><span>{money(order.total)}</span></div><div className="mt-2 flex justify-between text-base font-semibold"><span>Total</span><span>{money(order.total)}</span></div></div></div> }
-function SectionTitle({ children }: { children: React.ReactNode }) { return <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em]">{children}</h2> }
-function Record({ label, value }: { label: string; value: string }) { return <div><p className="text-muted-foreground">{label}</p><p className="mt-1 break-words">{value}</p></div> }
+function formatDate(value: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function PageShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div>
+        {onBack && (
+          <div className="flex h-14 items-center border-b px-4 md:px-8">
+            <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to orders">
+              <ArrowLeft className="size-4" />
+            </Button>
+            <span className="ml-2 text-sm font-medium">Order detail</span>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function Loading() {
+  return (
+    <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+      <Loader2 className="mr-2 size-4 animate-spin" /> Loading orders…
+    </div>
+  )
+}
+
+function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <span>{message}</span>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function OrdersPage({ detailId }: { detailId?: string }) {
+  const [orders, setOrders] = useState<MerchantOrderSummary[]>([])
+  const [total, setTotal] = useState(0)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [listLoading, setListLoading] = useState(!detailId)
+  const [detail, setDetail] = useState<MerchantOrder | null>(null)
+  const [audit, setAudit] = useState<AuditEntry[]>([])
+  const [detailLoading, setDetailLoading] = useState(Boolean(detailId))
+  const [error, setError] = useState('')
+  const [action, setAction] = useState('')
+
+  const loadList = useCallback(async () => {
+    setListLoading(true)
+    setError('')
+    try {
+      const page = await merchantJson<MerchantOrderPage>('/orders?limit=100')
+      setOrders(page.items)
+      setTotal(page.total)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load orders.')
+    } finally {
+      setListLoading(false)
+    }
+  }, [])
+
+  const loadDetail = useCallback(async (id: string) => {
+    setDetailLoading(true)
+    setError('')
+    try {
+      const [nextOrder, nextAudit] = await Promise.all([
+        merchantJson<MerchantOrder>(`/orders/${encodeURIComponent(id)}`),
+        merchantJson<AuditPage>(
+          `/audit?order_id=${encodeURIComponent(id)}&limit=50`,
+        ).catch(() => ({ items: [], total: 0, limit: 50, offset: 0 })),
+      ])
+      setDetail(nextOrder)
+      setAudit(nextAudit.items)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load this order.')
+      setDetail(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (detailId) {
+      void loadDetail(detailId)
+    } else {
+      void loadList()
+    }
+  }, [detailId, loadDetail, loadList])
+
+  const counts = useMemo(() => {
+    const result: Record<string, number> = { all: orders.length }
+    for (const order of orders) result[order.status] = (result[order.status] ?? 0) + 1
+    return result
+  }, [orders])
+
+  const visible = useMemo(
+    () => (filter === 'all' ? orders : orders.filter((order) => order.status === filter)),
+    [orders, filter],
+  )
+
+  const runAction = async (name: 'fulfill' | 'cancel' | 'payment-link') => {
+    if (!detail || action) return
+    setAction(name)
+    setError('')
+    try {
+      const next = await merchantJson<MerchantOrder>(
+        `/orders/${encodeURIComponent(detail.id)}/${name}`,
+        { method: 'POST' },
+      )
+      setDetail(next)
+      await loadList()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The action could not be completed.')
+    } finally {
+      setAction('')
+    }
+  }
+
+  if (detailId) {
+    if (detailLoading) {
+      return (
+        <PageShell onBack={() => (window.location.href = '/orders')}>
+          <div className="mx-auto max-w-7xl p-4 md:p-8">
+            <Loading />
+          </div>
+        </PageShell>
+      )
+    }
+
+    if (!detail) {
+      return (
+        <PageShell onBack={() => (window.location.href = '/orders')}>
+          <div className="mx-auto max-w-7xl p-4 md:p-8">
+            <ErrorNotice message={error || 'Order not found.'} onRetry={() => loadDetail(detailId)} />
+          </div>
+        </PageShell>
+      )
+    }
+
+    const paid = detail.status === 'paid' || detail.status === 'fulfilled'
+
+    return (
+      <PageShell onBack={() => (window.location.href = '/orders')}>
+        <main className="mx-auto max-w-7xl p-4 md:p-8">
+          <div className="flex flex-col gap-4 border-b pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Order detail
+              </p>
+              <h1 className="mt-2 font-mono text-2xl font-semibold">{detail.id}</h1>
+              <div className="mt-2 flex items-center gap-2">
+                <StatusBadge status={detail.status} />
+                <span className="text-sm text-muted-foreground">
+                  {formatDate(detail.created_at)}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {detail.conversation_id && (
+                <a href={`/inbox?conversation=${detail.conversation_id}`}>
+                  <Button variant="outline" size="sm">
+                    View conversation <ChevronRight className="ml-1 size-4" />
+                  </Button>
+                </a>
+              )}
+              {detail.approval_link && (
+                <a href={detail.approval_link} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm">
+                    Open payment <ExternalLink className="ml-1 size-3.5" />
+                  </Button>
+                </a>
+              )}
+              {detail.status === 'confirmed' && (
+                <Button size="sm" onClick={() => runAction('payment-link')} disabled={Boolean(action)}>
+                  {action === 'payment-link' && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                  Create payment link
+                </Button>
+              )}
+              {detail.status === 'paid' && (
+                <Button size="sm" onClick={() => runAction('fulfill')} disabled={Boolean(action)}>
+                  {action === 'fulfill' && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                  Mark fulfilled
+                </Button>
+              )}
+              {(detail.status === 'confirmed' || detail.status === 'pending_payment') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => runAction('cancel')}
+                  disabled={Boolean(action)}
+                >
+                  {action === 'cancel' && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                  Cancel order
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {error && <div className="mt-5"><ErrorNotice message={error} /></div>}
+
+          <div className="grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-6">
+              <div className="overflow-hidden rounded-[6px] border border-dashed bg-muted/10">
+                <div className="flex justify-between border-b border-dashed px-6 py-4 font-mono text-sm">
+                  <span>ORDER</span>
+                  <span>{detail.id}</span>
+                </div>
+                <div className="flex flex-col gap-3 px-6 py-5 font-mono text-sm">
+                  {detail.items.map((item) => (
+                    <div key={item.id} className="flex justify-between gap-3">
+                      <span>
+                        {item.qty} × {item.name_snapshot}
+                        {item.variant_snapshot?.name ? ` (${item.variant_snapshot.name})` : ''}
+                      </span>
+                      <span>{formatMoney(item.line_total, detail.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-dashed px-6 py-4 font-mono text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatMoney(detail.subtotal, detail.currency)}</span>
+                  </div>
+                  <div className="mt-2 flex justify-between text-muted-foreground">
+                    <span>Delivery</span>
+                    <span>{formatMoney(detail.delivery_fee, detail.currency)}</span>
+                  </div>
+                  <div className="mt-3 flex justify-between border-t border-dashed pt-3 text-base font-semibold">
+                    <span>Total</span>
+                    <span>{formatMoney(detail.total, detail.currency)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <section className="grid gap-4 border-t pt-5 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Delivery details
+                  </p>
+                  <p className="text-sm">{deliveryText(detail.delivery_details)}</p>
+                </div>
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Order state
+                  </p>
+                  <p className="text-sm">
+                    Created {formatDate(detail.created_at)}
+                    <br />
+                    Updated {formatDate(detail.updated_at)}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            <div className="divide-y border-y">
+              <section className="py-5">
+                <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em]">
+                  Payment record
+                </h2>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 font-mono text-xs">
+                  <Record label="PayPal order ID" value={detail.paypal_order_id ?? '—'} />
+                  <Record
+                    label="Status"
+                    value={paid ? 'COMPLETED' : detail.status.toUpperCase()}
+                  />
+                  <Record label="Paid at" value={formatDate(detail.paid_at)} />
+                  <Record label="Expires at" value={formatDate(detail.expires_at)} />
+                  <Record
+                    label="Gross amount"
+                    value={formatMoney(detail.total, detail.currency)}
+                  />
+                  <Record label="Reminders" value={String(detail.reminder_count)} />
+                </div>
+                {detail.approval_link && (
+                  <p className="mt-4 break-all border-l-2 pl-3 font-mono text-[10px] text-muted-foreground">
+                    {detail.approval_link}
+                  </p>
+                )}
+              </section>
+
+              <section className="py-5">
+                <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em]">
+                  Audit log
+                </h2>
+                {audit.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payment actions recorded yet.</p>
+                ) : (
+                  <div className="flex flex-col">
+                    {audit.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="border-l border-border pb-4 pl-4 font-mono text-[11px] last:pb-0"
+                      >
+                        <div className="flex flex-wrap gap-x-2">
+                          <span className="font-semibold">{entry.action}</span>
+                          <span className="text-muted-foreground">{entry.trigger}</span>
+                          {entry.amount && <span>{formatMoney(entry.amount, entry.currency)}</span>}
+                          <span className="text-muted-foreground">{entry.result}</span>
+                        </div>
+                        <p className="mt-1 text-muted-foreground">
+                          {formatDate(entry.created_at)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        </main>
+      </PageShell>
+    )
+  }
+
+  return (
+    <PageShell>
+      <main className="mx-auto max-w-7xl p-4 md:p-8">
+        <div className="flex flex-col gap-4 border-b pb-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Commerce / Orders
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Orders</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Payments, fulfilment, and refunds in one place.
+            </p>
+          </div>
+          <p className="font-mono text-xs text-muted-foreground">
+            {total} order{total === 1 ? '' : 's'} total
+            {total > orders.length ? ` · showing latest ${orders.length}` : ''}
+          </p>
+        </div>
+
+        {error && <div className="mt-5"><ErrorNotice message={error} onRetry={loadList} /></div>}
+
+        <div className="flex gap-1 overflow-x-auto border-b py-4">
+          {filters.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`whitespace-nowrap rounded-[6px] px-3 py-2 text-xs ${
+                filter === value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {label}{' '}
+              <span className="ml-1 font-mono opacity-70">{counts[value] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 overflow-x-auto rounded-[6px] border">
+          {listLoading ? (
+            <Loading />
+          ) : visible.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+              <div className="grid size-12 place-items-center rounded-full bg-muted">
+                <ShoppingBag className="size-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">No orders here yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Orders your assistant creates in chat will appear in this list.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <table className="w-full min-w-[680px] text-left text-sm">
+              <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Order ID</th>
+                  <th className="px-4 py-3 font-medium">Items</th>
+                  <th className="px-4 py-3 font-medium">Total</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((order) => (
+                  <tr
+                    key={order.id}
+                    className="cursor-pointer border-b last:border-0 hover:bg-muted/30"
+                    onClick={() => {
+                      window.location.href = `/orders/${order.id}`
+                    }}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs">{order.id}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Package className="size-3.5" /> {order.item_count}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono">
+                      {formatMoney(order.total, order.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={order.status} />
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {formatDate(order.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </main>
+    </PageShell>
+  )
+}
+
+function Record({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words">{value}</p>
+    </div>
+  )
+}

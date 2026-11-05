@@ -1,52 +1,822 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Check, ChevronDown, GripVertical, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Check,
+  Loader2,
+  MoreHorizontal,
+  Package,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { extraProducts, products as seedProducts } from '@/lib/mock'
-import type { Product, ProductVariant } from '@/lib/types'
+import { getStoredUser } from '@/lib/auth-client'
+import { merchantJson } from '@/lib/merchant-client'
+import type { DeliveryZone, Product } from '@/lib/backend-types'
+import { formatMoney } from '@/lib/order-utils'
 
-type Zone = { id: string; name: string; areas: string[]; fee: number; eta: string }
-const initialProducts = [...seedProducts, ...extraProducts]
-const initialZones: Zone[] = [
-  { id: 'z1', name: 'United States', areas: ['All states'], fee: 6, eta: '3–5' },
-  { id: 'z2', name: 'Canada', areas: ['Ontario', 'Quebec', 'BC'], fee: 14, eta: '5–8' },
-  { id: 'z3', name: 'Local pickup', areas: ['Luma Goods studio'], fee: 0, eta: '1' },
-]
-const money = (v: number) => `$${v.toFixed(2)}`
-const stockTotal = (p: Product) => p.variants.length ? p.variants.reduce((sum, v) => sum + v.stock, 0) : 20
-const makeVariant = (): ProductVariant => ({ id: `v-${Date.now()}`, name: 'New variant', options: ['Size: M'], stock: 0 })
+type VariantDraft = {
+  id?: string
+  name: string
+  options: string
+  price_override: string
+  stock: string
+}
+
+type ProductDraft = {
+  id?: string
+  name: string
+  description: string
+  price: string
+  active: boolean
+  variants: VariantDraft[]
+}
+
+type ZoneDraft = {
+  id?: string
+  name: string
+  areas: string
+  fee: string
+  eta_days: string
+}
+
+function emptyVariant(): VariantDraft {
+  return { name: '', options: '', price_override: '', stock: '0' }
+}
+
+function newProductDraft(): ProductDraft {
+  return {
+    name: '',
+    description: '',
+    price: '',
+    active: true,
+    variants: [emptyVariant()],
+  }
+}
+
+function formatOptions(options: Record<string, unknown>) {
+  return Object.entries(options)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(', ')
+}
+
+function parseOptions(value: string) {
+  const options: Record<string, string> = {}
+  for (const part of value.split(',').map((item) => item.trim()).filter(Boolean)) {
+    const separator = part.indexOf(':')
+    if (separator === -1) {
+      options.Option = part
+      continue
+    }
+    const key = part.slice(0, separator).trim()
+    const item = part.slice(separator + 1).trim()
+    if (key && item) options[key] = item
+  }
+  return options
+}
+
+function productToDraft(product: Product): ProductDraft {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    active: product.active,
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      name: variant.name,
+      options: formatOptions(variant.options),
+      price_override: variant.price_override ?? '',
+      stock: String(variant.stock),
+    })),
+  }
+}
+
+function variantPayload(variant: VariantDraft) {
+  return {
+    name: variant.name.trim(),
+    options: parseOptions(variant.options),
+    price_override: variant.price_override ? Number(variant.price_override) : null,
+    stock: Math.max(0, Math.round(Number(variant.stock) || 0)),
+  }
+}
+
+function stockTotal(product: Product) {
+  if (!product.variants.length) return null
+  return product.variants.reduce((sum, variant) => sum + variant.stock, 0)
+}
+
+function errorMessage(caught: unknown, fallback: string) {
+  return caught instanceof Error ? caught.message : fallback
+}
 
 export function CataloguePage() {
   const [tab, setTab] = useState<'products' | 'zones'>('products')
-  const [items, setItems] = useState(initialProducts)
-  const [zones, setZones] = useState(initialZones)
+  const [products, setProducts] = useState<Product[]>([])
+  const [zones, setZones] = useState<DeliveryZone[]>([])
+  const [currency, setCurrency] = useState('USD')
   const [query, setQuery] = useState('')
   const [activeOnly, setActiveOnly] = useState(false)
-  const [selected, setSelected] = useState<Product | null>(null)
-  const [draft, setDraft] = useState<Product | null>(null)
-  const [zoneDraft, setZoneDraft] = useState<Zone | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState<ProductDraft | null>(null)
+  const [zoneDraft, setZoneDraft] = useState<ZoneDraft | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
-  const filtered = useMemo(() => items.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()) && (!activeOnly || p.active)), [items, query, activeOnly])
-  const openEditor = (product?: Product) => { const next = product ? structuredClone(product) : { id: `p-${Date.now()}`, name: '', description: '', price: 0, currency: 'USD', active: true, imageUrls: ['/placeholder.jpg'], variants: [makeVariant()] }; setSelected(product ?? null); setDraft(next) }
-  const save = () => { if (!draft?.name.trim()) return; setItems((current) => selected ? current.map((p) => p.id === draft.id ? draft : p) : [...current, draft]); setDraft(null); setSelected(null) }
-  const remove = () => { if (draft) setItems((current) => current.filter((p) => p.id !== draft.id)); setDraft(null); setSelected(null); setConfirmDelete(false) }
-  const toggle = (id: string) => setItems((current) => current.map((p) => p.id === id ? { ...p, active: !p.active } : p))
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [nextProducts, nextZones] = await Promise.all([
+        merchantJson<Product[]>('/products?include_inactive=true'),
+        merchantJson<DeliveryZone[]>('/delivery-zones'),
+      ])
+      setProducts(nextProducts)
+      setZones(nextZones)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not load your catalogue.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  return <div className="relative flex min-h-[calc(100vh-4rem)] flex-col">
-    <div className="border-b px-4 py-5 md:px-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Catalogue</p><h1 className="mt-1 text-3xl">Products</h1></div>{tab === 'products' && <Button onClick={() => openEditor()}><Plus data-icon="inline-start" />Add product</Button>}</div><div className="mt-5 flex gap-5 text-sm"><button className={`border-b-2 pb-2 ${tab === 'products' ? 'border-primary font-medium' : 'border-transparent text-muted-foreground'}`} onClick={() => setTab('products')}>Products</button><button className={`border-b-2 pb-2 ${tab === 'zones' ? 'border-primary font-medium' : 'border-transparent text-muted-foreground'}`} onClick={() => setTab('zones')}>Delivery zones</button></div></div>
-    {tab === 'products' ? <section className="p-4 md:p-8"><div className="mb-5 flex flex-wrap items-center gap-3"><div className="relative max-w-sm flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products" className="pl-9" /></div><label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />Active only</label></div><div className="overflow-x-auto border-y"><table className="w-full min-w-[720px] text-sm"><thead><tr className="text-left text-xs uppercase tracking-wide text-muted-foreground"><th className="w-16 py-3">Image</th><th className="py-3">Name</th><th className="py-3">Variants</th><th className="py-3">Price</th><th className="py-3">Total stock</th><th className="py-3">Active</th><th className="w-12 py-3" /></tr></thead><tbody>{filtered.map((p) => { const stock = stockTotal(p); return <tr key={p.id} className="border-t hover:bg-muted/30"><td className="py-3"><button onClick={() => openEditor(p)} className="block"><img src={p.imageUrls[0]} alt="" className="size-10 rounded-[6px] border object-cover" /></button></td><td className="py-3"><button className="text-left font-medium hover:underline" onClick={() => openEditor(p)}>{p.name}</button><p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">{p.description}</p></td><td className="py-3 text-muted-foreground">{p.variants.length}</td><td className="py-3 font-mono">{money(p.price)}</td><td className={`py-3 font-mono ${stock < 5 ? 'text-[#8A6A1F]' : ''}`}>{stock} {stock < 5 && <span className="font-sans text-xs">low</span>}</td><td className="py-3"><button aria-label={`Set ${p.name} ${p.active ? 'inactive' : 'active'}`} onClick={() => toggle(p.id)} className={`relative h-5 w-9 rounded-full border transition-colors ${p.active ? 'bg-emerald-500 border-emerald-500' : 'bg-muted border-border'}`}><span className={`absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-sm transition-transform ${p.active ? 'translate-x-4' : 'translate-x-0'}`} /></button></td><td className="py-3"><button aria-label={`More actions for ${p.name}`} className="rounded p-1 hover:bg-muted"><MoreHorizontal className="size-4" /></button></td></tr> })}</tbody></table>{filtered.length === 0 && <div className="grid place-items-center gap-3 py-16 text-sm text-muted-foreground"><svg width="72" height="36" viewBox="0 0 72 36" fill="none" aria-hidden="true"><path d="M8 27c8-15 15-15 23-3 8 12 14 10 20-2 5-9 9-9 13-2" stroke="currentColor" strokeWidth="1.5" /><circle cx="8" cy="27" r="2" fill="currentColor" /></svg><p>No products match your search.</p></div>}</div></section> : <ZonesTable zones={zones} onAdd={() => setZoneDraft({ id: `z-${Date.now()}`, name: '', areas: [], fee: 0, eta: '3–5' })} onEdit={setZoneDraft} />}
-    {draft && <ProductDrawer draft={draft} setDraft={setDraft} onSave={save} onCancel={() => { setDraft(null); setSelected(null) }} onDelete={() => setConfirmDelete(true)} />}
-    {zoneDraft && <ZoneDialog draft={zoneDraft} setDraft={setZoneDraft} onSave={() => { if (zoneDraft.name.trim()) setZones((current) => current.some((z) => z.id === zoneDraft.id) ? current.map((z) => z.id === zoneDraft.id ? zoneDraft : z) : [...current, zoneDraft]); setZoneDraft(null) }} onCancel={() => setZoneDraft(null)} />}
-    {confirmDelete && <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-sm border bg-background p-5"><h2 className="text-lg">Delete product?</h2><p className="mt-2 text-sm text-muted-foreground">This action cannot be undone.</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button><Button variant="destructive" onClick={remove}>Delete</Button></div></div></div>}
-  </div>
+  useEffect(() => {
+    const user = getStoredUser()
+    if (user) setCurrency(user.merchant.currency)
+    void load()
+  }, [load])
+
+  const filtered = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(query.toLowerCase()) &&
+          (!activeOnly || product.active),
+      ),
+    [activeOnly, products, query],
+  )
+
+  const saveProduct = async () => {
+    if (!draft || saving) return
+    if (!draft.name.trim() || !Number(draft.price)) {
+      setError('A product needs a name and a positive price.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      if (!draft.id) {
+        const created = await merchantJson<Product>('/products', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: draft.name.trim(),
+            description: draft.description,
+            price: Number(draft.price),
+            active: draft.active,
+            variants: draft.variants
+              .filter((variant) => variant.name.trim())
+              .map(variantPayload),
+          }),
+        })
+        setProducts((current) => [created, ...current])
+      } else {
+        const original = products.find((product) => product.id === draft.id)
+        await merchantJson<Product>(`/products/${encodeURIComponent(draft.id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: draft.name.trim(),
+            description: draft.description,
+            price: Number(draft.price),
+            active: draft.active,
+          }),
+        })
+
+        for (const variant of draft.variants.filter((item) => item.name.trim())) {
+          if (variant.id) {
+            await merchantJson(`/products/${encodeURIComponent(draft.id)}/variants/${encodeURIComponent(variant.id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify(variantPayload(variant)),
+            })
+          } else {
+            await merchantJson(`/products/${encodeURIComponent(draft.id)}/variants`, {
+              method: 'POST',
+              body: JSON.stringify(variantPayload(variant)),
+            })
+          }
+        }
+
+        for (const variant of original?.variants ?? []) {
+          if (!draft.variants.some((item) => item.id === variant.id)) {
+            await merchantJson(
+              `/products/${encodeURIComponent(draft.id)}/variants/${encodeURIComponent(variant.id)}`,
+              { method: 'DELETE' },
+            )
+          }
+        }
+
+        await load()
+      }
+      setDraft(null)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not save this product.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleProduct = async (product: Product) => {
+    try {
+      const updated = await merchantJson<Product>(`/products/${encodeURIComponent(product.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: !product.active }),
+      })
+      setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not update this product.'))
+    }
+  }
+
+  const deleteProduct = async () => {
+    if (!deleteTarget) return
+    try {
+      await merchantJson(`/products/${encodeURIComponent(deleteTarget.id)}`, { method: 'DELETE' })
+      setProducts((current) => current.filter((item) => item.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not delete this product. Deactivate it instead.'))
+      setDeleteTarget(null)
+    }
+  }
+
+  const saveZone = async () => {
+    if (!zoneDraft || saving) return
+    if (!zoneDraft.name.trim()) {
+      setError('A delivery zone needs a name.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      const payload = {
+        name: zoneDraft.name.trim(),
+        areas: zoneDraft.areas.split(',').map((area) => area.trim()).filter(Boolean),
+        fee: Number(zoneDraft.fee) || 0,
+        eta_days: Math.max(0, Math.round(Number(zoneDraft.eta_days) || 0)),
+      }
+      if (zoneDraft.id) {
+        await merchantJson(`/delivery-zones/${encodeURIComponent(zoneDraft.id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        })
+      } else {
+        await merchantJson('/delivery-zones', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+      }
+      await load()
+      setZoneDraft(null)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not save this delivery zone.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteZone = async (zone: DeliveryZone) => {
+    if (!window.confirm(`Delete the ${zone.name} delivery zone?`)) return
+    try {
+      await merchantJson(`/delivery-zones/${encodeURIComponent(zone.id)}`, { method: 'DELETE' })
+      setZones((current) => current.filter((item) => item.id !== zone.id))
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not delete this delivery zone.'))
+    }
+  }
+
+  return (
+    <div className="relative flex min-h-[calc(100vh-4rem)] flex-col">
+      <div className="border-b px-4 py-5 md:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Catalogue
+            </p>
+            <h1 className="mt-1 text-3xl">Products</h1>
+          </div>
+          {tab === 'products' ? (
+            <Button onClick={() => setDraft(newProductDraft())}>
+              <Plus data-icon="inline-start" /> Add product
+            </Button>
+          ) : (
+            <Button
+              onClick={() =>
+                setZoneDraft({ name: '', areas: '', fee: '0', eta_days: '3' })
+              }
+            >
+              <Plus data-icon="inline-start" /> Add zone
+            </Button>
+          )}
+        </div>
+        <div className="mt-5 flex gap-5 text-sm">
+          {(['products', 'zones'] as const).map((value) => (
+            <button
+              key={value}
+              className={`border-b-2 pb-2 ${
+                tab === value
+                  ? 'border-primary font-medium'
+                  : 'border-transparent text-muted-foreground'
+              }`}
+              onClick={() => setTab(value)}
+            >
+              {value === 'products' ? 'Products' : 'Delivery zones'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive md:mx-8">
+          <span>{error}</span>
+          <button onClick={() => setError('')} aria-label="Dismiss error">
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {tab === 'products' ? (
+        <section className="p-4 md:p-8">
+          <div className="mb-5 flex flex-wrap items-center gap-3">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search products"
+                className="pl-9"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={activeOnly}
+                onChange={(event) => setActiveOnly(event.target.checked)}
+              />
+              Active only
+            </label>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+              <Loader2 className="mr-2 size-4 animate-spin" /> Loading catalogue…
+            </div>
+          ) : (
+            <div className="overflow-x-auto border-y">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-3">Product</th>
+                    <th className="py-3">Variants</th>
+                    <th className="py-3">Price</th>
+                    <th className="py-3">Total stock</th>
+                    <th className="py-3">Active</th>
+                    <th className="py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((product) => {
+                    const stock = stockTotal(product)
+                    return (
+                      <tr key={product.id} className="border-t hover:bg-muted/30">
+                        <td className="py-3">
+                          <button
+                            className="text-left font-medium hover:underline"
+                            onClick={() => setDraft(productToDraft(product))}
+                          >
+                            {product.name}
+                          </button>
+                          <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
+                            {product.description || 'No description'}
+                          </p>
+                        </td>
+                        <td className="py-3 text-muted-foreground">
+                          {product.variants.length}
+                        </td>
+                        <td className="py-3 font-mono">
+                          {formatMoney(product.price, product.currency)}
+                        </td>
+                        <td className={`py-3 font-mono ${stock !== null && stock < 5 ? 'text-amber-700' : ''}`}>
+                          {stock === null ? '—' : stock}
+                        </td>
+                        <td className="py-3">
+                          <button
+                            aria-label={`Set ${product.name} ${product.active ? 'inactive' : 'active'}`}
+                            onClick={() => void toggleProduct(product)}
+                            className={`relative h-5 w-9 rounded-full border transition-colors ${
+                              product.active
+                                ? 'border-emerald-500 bg-emerald-500'
+                                : 'border-border bg-muted'
+                            }`}
+                          >
+                            <span
+                              className={`absolute left-0.5 top-0.5 size-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                                product.active ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => setDraft(productToDraft(product))}
+                              className="rounded px-2 py-1 text-xs text-primary hover:bg-muted"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(product)}
+                              className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                              aria-label={`Delete ${product.name}`}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <div className="grid place-items-center gap-3 py-16 text-sm text-muted-foreground">
+                  <Package className="size-7" />
+                  <p>{products.length ? 'No products match your search.' : 'No products yet. Add your first product.'}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="p-4 md:p-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+              <Loader2 className="mr-2 size-4 animate-spin" /> Loading delivery zones…
+            </div>
+          ) : (
+            <div className="overflow-x-auto border-y">
+              <table className="w-full min-w-[600px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-3">Name</th>
+                    <th className="py-3">Areas</th>
+                    <th className="py-3">Fee</th>
+                    <th className="py-3">ETA in days</th>
+                    <th className="py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {zones.map((zone) => (
+                    <tr key={zone.id} className="border-t">
+                      <td className="py-3 font-medium">{zone.name}</td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {zone.areas.map((area) => (
+                            <Badge key={area} variant="secondary">
+                              {area}
+                            </Badge>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 font-mono">{formatMoney(zone.fee, currency)}</td>
+                      <td className="py-3 font-mono">{zone.eta_days}</td>
+                      <td className="py-3 text-right">
+                        <button
+                          className="mr-2 text-xs text-primary hover:underline"
+                          onClick={() =>
+                            setZoneDraft({
+                              id: zone.id,
+                              name: zone.name,
+                              areas: zone.areas.join(', '),
+                              fee: zone.fee,
+                              eta_days: String(zone.eta_days),
+                            })
+                          }
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-xs text-destructive hover:underline"
+                          onClick={() => void deleteZone(zone)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {zones.length === 0 && (
+                <div className="grid place-items-center gap-3 py-16 text-sm text-muted-foreground">
+                  <MoreHorizontal className="size-7" />
+                  <p>No delivery zones yet. Add one so customers can check delivery.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {draft && (
+        <ProductDrawer
+          draft={draft}
+          setDraft={setDraft}
+          saving={saving}
+          currency={currency}
+          onSave={() => void saveProduct()}
+          onCancel={() => setDraft(null)}
+        />
+      )}
+
+      {zoneDraft && (
+        <ZoneDialog
+          draft={zoneDraft}
+          setDraft={setZoneDraft}
+          saving={saving}
+          onSave={() => void saveZone()}
+          onCancel={() => setZoneDraft(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm border bg-background p-5">
+            <h2 className="text-lg">Delete product?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {deleteTarget.name} will be removed permanently. Products with order history can only be
+              deactivated.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={() => void deleteProduct()}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
-function ProductDrawer({ draft, setDraft, onSave, onCancel, onDelete }: { draft: Product; setDraft: (p: Product) => void; onSave: () => void; onCancel: () => void; onDelete: () => void }) { const update = (patch: Partial<Product>) => setDraft({ ...draft, ...patch }); return <div className="fixed inset-0 z-30"><button aria-label="Close editor" className="absolute inset-0 bg-black/20" onClick={onCancel} /><aside className="absolute right-0 top-0 flex h-full w-full max-w-[480px] flex-col border-l bg-background"><div className="flex items-start justify-between border-b p-5"><div><h2 className="text-xl">{draft.name || 'New product'}</h2><p className="mt-1 text-xs text-muted-foreground">Unsaved changes</p></div><button aria-label="Close" onClick={onCancel}><X className="size-4" /></button></div><div className="flex-1 overflow-y-auto p-5"><div className="flex flex-col gap-4"><label className="text-sm">Name<Input value={draft.name} onChange={(e) => update({ name: e.target.value })} className="mt-1" /></label><label className="text-sm">Description<Textarea value={draft.description} onChange={(e) => update({ description: e.target.value })} className="mt-1 min-h-24" /></label><div className="grid grid-cols-2 gap-3"><label className="text-sm">Base price<Input type="number" value={draft.price} onChange={(e) => update({ price: Number(e.target.value) })} className="mt-1 font-mono" /></label><label className="text-sm">Currency<Input value={draft.currency} readOnly className="mt-1 font-mono" /></label></div><label className="flex items-center justify-between border-y py-3 text-sm">Active<input type="checkbox" checked={draft.active} onChange={(e) => update({ active: e.target.checked })} /></label><div><div className="mb-2 flex items-center justify-between text-sm font-medium"><span>Images</span><span className="text-xs text-muted-foreground">{draft.imageUrls.length} of 5</span></div><div className="flex gap-2"><div className="grid size-16 place-items-center border border-dashed text-xs text-muted-foreground">Drop</div>{draft.imageUrls.map((url, i) => <div key={`${url}-${i}`} className="relative"><GripVertical className="absolute -left-2 top-5 size-3 text-muted-foreground" /><img src={url} alt="" className="size-16 rounded-[6px] border object-cover" /><button aria-label={`Remove image ${i + 1}`} onClick={() => update({ imageUrls: draft.imageUrls.filter((_, index) => index !== i) })} className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border bg-background"><X className="size-3" /></button><div className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" />{i === 0 && <span className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground">Cover</span>}</div>)}</div></div><div><div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium">Variants</span><button className="text-xs text-primary hover:underline" onClick={() => update({ variants: [...draft.variants, makeVariant()] })}>Add variant</button></div><div className="flex flex-col gap-2">{draft.variants.map((variant, i) => <div key={variant.id} className="grid grid-cols-[1fr_1fr_68px_24px] gap-1.5"><Input aria-label={`Variant ${i + 1} name`} value={variant.name} onChange={(e) => update({ variants: draft.variants.map((v, index) => index === i ? { ...v, name: e.target.value } : v) })} placeholder="Name" /><Input aria-label={`Variant ${i + 1} options`} value={variant.options.join(', ')} onChange={(e) => update({ variants: draft.variants.map((v, index) => index === i ? { ...v, options: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } : v) })} placeholder="Size: M" /><Input aria-label={`Variant ${i + 1} stock`} type="number" value={variant.stock} onChange={(e) => update({ variants: draft.variants.map((v, index) => index === i ? { ...v, stock: Number(e.target.value) } : v) })} className="font-mono" /><button aria-label={`Remove variant ${i + 1}`} onClick={() => update({ variants: draft.variants.filter((_, index) => index !== i) })}><X className="size-4" /></button></div>)}</div>{draft.variants.some((v, i) => draft.variants.some((other, j) => i !== j && v.options.join('|') === other.options.join('|'))) && <p className="mt-2 text-xs text-[#8A6A1F]">Two variants have identical options.</p>}</div></div></div><div className="flex items-center justify-between border-t p-5"><button className="text-sm text-destructive hover:underline" onClick={onDelete}>Delete product</button><div className="flex gap-2"><Button variant="outline" onClick={onCancel}>Cancel</Button><Button onClick={onSave}><Check data-icon="inline-start" />Save</Button></div></div></aside></div> }
+function ProductDrawer({
+  draft,
+  setDraft,
+  saving,
+  currency,
+  onSave,
+  onCancel,
+}: {
+  draft: ProductDraft
+  setDraft: (draft: ProductDraft) => void
+  saving: boolean
+  currency: string
+  onSave: () => void
+  onCancel: () => void
+}) {
+  const update = (patch: Partial<ProductDraft>) => setDraft({ ...draft, ...patch })
+  const updateVariant = (index: number, patch: Partial<VariantDraft>) =>
+    update({
+      variants: draft.variants.map((variant, variantIndex) =>
+        variantIndex === index ? { ...variant, ...patch } : variant,
+      ),
+    })
 
-function ZonesTable({ zones, onAdd, onEdit }: { zones: Zone[]; onAdd: () => void; onEdit: (z: Zone) => void }) { return <section className="p-4 md:p-8"><div className="mb-4 flex justify-end"><Button variant="outline" onClick={onAdd}><Plus data-icon="inline-start" />Add zone</Button></div><div className="overflow-x-auto border-y"><table className="w-full min-w-[600px] text-sm"><thead><tr className="text-left text-xs uppercase tracking-wide text-muted-foreground"><th className="py-3">Name</th><th className="py-3">Areas</th><th className="py-3">Fee</th><th className="py-3">ETA in days</th><th /></tr></thead><tbody>{zones.map((zone) => <tr key={zone.id} className="border-t"><td className="py-3 font-medium">{zone.name}</td><td className="py-3"><div className="flex flex-wrap gap-1">{zone.areas.map((area) => <Badge key={area} variant="secondary">{area}</Badge>)}</div></td><td className="py-3 font-mono">{money(zone.fee)}</td><td className="py-3 font-mono">{zone.eta}</td><td className="py-3 text-right"><button onClick={() => onEdit(zone)} className="text-sm text-primary hover:underline">Edit</button></td></tr>)}</tbody></table></div></section> }
-function ZoneDialog({ draft, setDraft, onSave, onCancel }: { draft: Zone; setDraft: (z: Zone | null) => void; onSave: () => void; onCancel: () => void }) { return <div className="fixed inset-0 z-30 grid place-items-center bg-black/30 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-md border bg-background p-5"><div className="flex items-center justify-between"><h2 className="text-xl">{draft.name || 'New delivery zone'}</h2><button onClick={onCancel} aria-label="Close"><X className="size-4" /></button></div><div className="mt-5 flex flex-col gap-4"><label className="text-sm">Name<Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label><label className="text-sm">Areas<Input value={draft.areas.join(', ')} onChange={(e) => setDraft({ ...draft, areas: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} placeholder="Ontario, Quebec" /></label><div className="grid grid-cols-2 gap-3"><label className="text-sm">Fee<Input type="number" value={draft.fee} onChange={(e) => setDraft({ ...draft, fee: Number(e.target.value) })} className="font-mono" /></label><label className="text-sm">ETA in days<Input value={draft.eta} onChange={(e) => setDraft({ ...draft, eta: e.target.value })} className="font-mono" /></label></div></div><div className="mt-6 flex justify-end gap-2"><Button variant="outline" onClick={onCancel}>Cancel</Button><Button onClick={onSave}>Save</Button></div></div></div> }
+  return (
+    <div className="fixed inset-0 z-30">
+      <button aria-label="Close editor" className="absolute inset-0 bg-black/20" onClick={onCancel} />
+      <aside className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l bg-background">
+        <div className="flex items-start justify-between border-b p-5">
+          <div>
+            <h2 className="text-xl">{draft.name || 'New product'}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{draft.id ? 'Editing product' : 'Unsaved new product'}</p>
+          </div>
+          <button aria-label="Close" onClick={onCancel}>
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex flex-col gap-4">
+            <label className="text-sm">
+              Name
+              <Input
+                value={draft.name}
+                onChange={(event) => update({ name: event.target.value })}
+                className="mt-1"
+                placeholder="Canvas tote"
+              />
+            </label>
+            <label className="text-sm">
+              Description
+              <Textarea
+                value={draft.description}
+                onChange={(event) => update({ description: event.target.value })}
+                className="mt-1 min-h-24"
+                placeholder="What is this product?"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">
+                Base price
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={draft.price}
+                  onChange={(event) => update({ price: event.target.value })}
+                  className="mt-1 font-mono"
+                />
+              </label>
+              <label className="text-sm">
+                Currency
+                <Input value={currency} readOnly className="mt-1 font-mono" />
+              </label>
+            </div>
+            <label className="flex items-center justify-between border-y py-3 text-sm">
+              Active
+              <input
+                type="checkbox"
+                checked={draft.active}
+                onChange={(event) => update({ active: event.target.checked })}
+              />
+            </label>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium">Variants</span>
+                <button
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => update({ variants: [...draft.variants, emptyVariant()] })}
+                >
+                  Add variant
+                </button>
+              </div>
+              <div className="flex flex-col gap-3">
+                {draft.variants.map((variant, index) => (
+                  <div key={variant.id ?? `new-${index}`} className="rounded-[6px] border p-3">
+                    <div className="grid grid-cols-[1fr_1fr_24px] gap-1.5">
+                      <Input
+                        aria-label={`Variant ${index + 1} name`}
+                        value={variant.name}
+                        onChange={(event) => updateVariant(index, { name: event.target.value })}
+                        placeholder="Natural"
+                      />
+                      <Input
+                        aria-label={`Variant ${index + 1} options`}
+                        value={variant.options}
+                        onChange={(event) => updateVariant(index, { options: event.target.value })}
+                        placeholder="Color: Natural"
+                      />
+                      <button
+                        aria-label={`Remove variant ${index + 1}`}
+                        onClick={() =>
+                          update({
+                            variants: draft.variants.filter((_, variantIndex) => variantIndex !== index),
+                          })
+                        }
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Price override
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.price_override}
+                          onChange={(event) =>
+                            updateVariant(index, { price_override: event.target.value })
+                          }
+                          className="mt-1 font-mono"
+                          placeholder="Use base price"
+                        />
+                      </label>
+                      <label className="text-xs text-muted-foreground">
+                        Stock
+                        <Input
+                          type="number"
+                          min="0"
+                          value={variant.stock}
+                          onChange={(event) => updateVariant(index, { stock: event.target.value })}
+                          className="mt-1 font-mono"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t p-5">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onSave} disabled={saving}>
+            {saving ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Check className="mr-1.5 size-4" />}
+            Save product
+          </Button>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function ZoneDialog({
+  draft,
+  setDraft,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  draft: ZoneDraft
+  setDraft: (draft: ZoneDraft) => void
+  saving: boolean
+  onSave: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-30 grid place-items-center bg-black/30 p-4">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md border bg-background p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl">{draft.id ? 'Edit delivery zone' : 'New delivery zone'}</h2>
+          <button onClick={onCancel} aria-label="Close">
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="mt-5 flex flex-col gap-4">
+          <label className="text-sm">
+            Name
+            <Input
+              value={draft.name}
+              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              placeholder="United States"
+            />
+          </label>
+          <label className="text-sm">
+            Areas
+            <Input
+              value={draft.areas}
+              onChange={(event) => setDraft({ ...draft, areas: event.target.value })}
+              placeholder="Ontario, Quebec"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm">
+              Fee
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={draft.fee}
+                onChange={(event) => setDraft({ ...draft, fee: event.target.value })}
+                className="font-mono"
+              />
+            </label>
+            <label className="text-sm">
+              ETA in days
+              <Input
+                type="number"
+                min="0"
+                value={draft.eta_days}
+                onChange={(event) => setDraft({ ...draft, eta_days: event.target.value })}
+                className="font-mono"
+              />
+            </label>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onSave} disabled={saving}>
+            {saving && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+            Save zone
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

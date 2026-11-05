@@ -1,61 +1,634 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { storeUrl } from '@/lib/brand'
-import { Check, Clipboard, Copy, ExternalLink, Eye, Link2, Save, Settings2, ShieldCheck, Users, Zap } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  Link2,
+  Loader2,
+  Save,
+  Settings2,
+  ShieldCheck,
+  Users,
+  Zap,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { getStoredUser } from '@/lib/auth-client'
+import { merchantJson } from '@/lib/merchant-client'
+import type {
+  AuthUser,
+  BusinessInfoDoc,
+  DeliveryZone,
+  MerchantSettings,
+  PayPalStatus,
+} from '@/lib/backend-types'
 
-const tabs = ['About', 'Policies', 'FAQ'] as const
-const docs: Record<(typeof tabs)[number], string> = {
-  About: '# About Luma Goods\n\nLuma Goods makes considered everyday objects for people who care about how things are made.\n\n- **Delivery:** Standard delivery takes 3–5 business days.\n- **Support:** Email hello@lumagoods.com for help.',
-  Policies: '# Policies\n\nReturns are accepted within 30 days in original condition.\n\n## Warranties\nEvery product includes a one-year manufacturing warranty.',
-  FAQ: '# Frequently asked questions\n\n## Do you ship internationally?\nYes. Duties and taxes are calculated at checkout.\n\n## How do I track my order?\nYour tracking link is sent by email once the order ships.',
+const sources = [
+  { key: 'about', label: 'About', hint: 'Who you are, what you sell, and how you talk about it.' },
+  { key: 'policies', label: 'Policies', hint: 'Returns, warranties, shipping rules, and other promises.' },
+  { key: 'faq', label: 'FAQ', hint: 'Answers to the questions customers ask most often.' },
+] as const
+
+type Source = (typeof sources)[number]['key']
+
+function Preview({ value }: { value: string }) {
+  return (
+    <div className="prose prose-sm min-h-[280px] max-w-none whitespace-pre-wrap p-4 text-sm leading-7 text-foreground">
+      {value.split('\n').map((line, index) => (
+        <p
+          key={`${line}-${index}`}
+          className={line.startsWith('#') ? 'font-semibold' : line.startsWith('-') ? 'pl-3' : ''}
+        >
+          {line.replace(/^#+\s/, '').replace(/^[-]\s/, '• ') || '\u00a0'}
+        </p>
+      ))}
+    </div>
+  )
 }
 
-function InnerShell({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-background"><div>{children}</div></div>
+function errorMessage(caught: unknown, fallback: string) {
+  return caught instanceof Error ? caught.message : fallback
 }
-
-function Preview({ value }: { value: string }) { return <div className="prose prose-sm min-h-[280px] max-w-none whitespace-pre-wrap p-4 text-sm leading-7 text-foreground">{value.split('\n').map((line, index) => <p key={`${line}-${index}`} className={line.startsWith('#') ? 'font-semibold' : line.startsWith('-') ? 'pl-3' : ''}>{line.replace(/^#+\s/, '').replace(/^[-]\s/, '• ') || '\u00a0'}</p>)}</div> }
-function SaveLine({ state, onCycle }: { state: string; onCycle: () => void }) { return <div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground"><span className="flex items-center gap-2"><span className={`size-1.5 rounded-full ${state === 'Saved' ? 'bg-emerald-600' : 'bg-primary'}`} />{state}</span><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCycle}>Cycle mock state</Button></div> }
 
 export function BusinessInfoPage() {
-  const [tab, setTab] = useState<(typeof tabs)[number]>('About')
-  const [values, setValues] = useState(docs)
-  const [states, setStates] = useState<Record<string, string>>({ About: 'Saved', Policies: 'Saved', FAQ: 'Indexed 2 minutes ago' })
-  const cycle = (key: string) => setStates((current) => ({ ...current, [key]: current[key] === 'Saved' ? 'Saving…' : current[key] === 'Saving…' ? 'Indexing… (about 30s)' : current[key] === 'Indexing… (about 30s)' ? 'Indexed 2 minutes ago' : 'Saved' }))
-  return <InnerShell><main className="mx-auto max-w-7xl p-4 md:p-8"><div className="border-b pb-6"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Knowledge / Business info</p><h1 className="mt-2 text-2xl font-semibold">Business info</h1><p className="mt-1 text-sm text-muted-foreground">Teach the assistant what is true about your business.</p></div><div className="mt-6 flex gap-1 border-b">{tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={`border-b-2 px-4 py-3 text-sm ${tab === item ? 'border-primary font-medium' : 'border-transparent text-muted-foreground'}`}>{item}</button>)}</div><section className="py-6"><p className="max-w-2xl text-sm text-muted-foreground">{tab === 'About' ? 'The assistant answers questions about your products, delivery, and warranties from this text only.' : tab === 'Policies' ? 'The assistant uses this text to answer returns, refunds, and warranty questions consistently.' : 'The assistant uses this text to answer common customer questions without guessing.'}</p><div className="mt-4 grid overflow-hidden rounded-[6px] border lg:grid-cols-2"><div className="border-b lg:border-b-0 lg:border-r"><div className="flex items-center gap-1 border-b px-3 py-2">{['B', 'H2', '• List', 'Link'].map((item) => <button key={item} className="px-2 py-1 text-xs font-mono text-muted-foreground hover:bg-muted">{item}</button>)}</div><Textarea value={values[tab]} onChange={(event) => setValues((current) => ({ ...current, [tab]: event.target.value }))} className="min-h-[280px] resize-y rounded-none border-0 font-mono text-xs leading-6 focus-visible:ring-0" aria-label={`${tab} markdown editor`} /></div><div className="bg-muted/20"><div className="flex items-center gap-2 border-b px-4 py-3 text-xs text-muted-foreground"><Eye className="size-3.5" /> Live preview</div>{values[tab].trim() ? <Preview value={values[tab]} /> : <p className="p-4 text-sm text-muted-foreground">The assistant will tell customers it doesn&apos;t have this information.</p>}</div><SaveLine state={states[tab]} onCycle={() => cycle(tab)} /></div></section></main></InnerShell>
+  const [tab, setTab] = useState<Source>('about')
+  const [docs, setDocs] = useState<Record<Source, string>>({ about: '', policies: '', faq: '' })
+  const [updated, setUpdated] = useState<Record<Source, string | null>>({
+    about: null,
+    policies: null,
+    faq: null,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const items = await merchantJson<BusinessInfoDoc[]>('/business-info')
+      const content: Record<Source, string> = { about: '', policies: '', faq: '' }
+      const timestamps: Record<Source, string | null> = { about: null, policies: null, faq: null }
+      for (const item of items) {
+        if (item.source === 'about' || item.source === 'policies' || item.source === 'faq') {
+          content[item.source] = item.content
+          timestamps[item.source] = item.updated_at
+        }
+      }
+      setDocs(content)
+      setUpdated(timestamps)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not load your business info.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const save = async () => {
+    if (saving) return
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      const saved = await merchantJson<BusinessInfoDoc>(`/business-info/${tab}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content: docs[tab] }),
+      })
+      setUpdated((current) => ({ ...current, [tab]: saved.updated_at }))
+      setMessage('Saved')
+      setTimeout(() => setMessage(''), 2000)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not save this document.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const active = sources.find((source) => source.key === tab)!
+
+  return (
+    <div className="mx-auto max-w-7xl p-4 md:p-8">
+      <div className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Knowledge
+        </p>
+        <h1 className="mt-1 text-3xl">Business info</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Everything here becomes source material for your assistant. Write it the way you would
+          explain it to a new customer.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-5 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <Card className="overflow-hidden rounded-[10px]">
+          <div className="flex items-center gap-5 border-b px-4 pt-4 text-sm">
+            {sources.map((source) => (
+              <button
+                key={source.key}
+                onClick={() => {
+                  setTab(source.key)
+                  setMessage('')
+                  setError('')
+                }}
+                className={`border-b-2 pb-3 ${
+                  tab === source.key
+                    ? 'border-primary font-medium'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {source.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-2">
+            <div className="border-b p-4 lg:border-b-0 lg:border-r">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">{active.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{active.hint}</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {updated[tab] ? `Updated ${new Date(updated[tab]!).toLocaleDateString()}` : 'Not saved yet'}
+                </span>
+              </div>
+              {loading ? (
+                <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 size-4 animate-spin" /> Loading…
+                </div>
+              ) : (
+                <Textarea
+                  value={docs[tab]}
+                  onChange={(event) =>
+                    setDocs((current) => ({ ...current, [tab]: event.target.value }))
+                  }
+                  placeholder={`Write your ${active.label.toLowerCase()} information in markdown…`}
+                  className="min-h-[320px] resize-y font-mono text-sm"
+                />
+              )}
+            </div>
+            <div>
+              <p className="border-b px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Preview
+              </p>
+              <Preview value={docs[tab]} />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {message || (saving ? 'Saving…' : 'Changes are used by the assistant after saving.')}
+            </p>
+            <Button onClick={() => void save()} disabled={saving || loading}>
+              {saving ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Save className="mr-1.5 size-4" />}
+              Save {active.label.toLowerCase()}
+            </Button>
+          </div>
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <CardTitle className="text-base">How this is used</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Your assistant searches these notes before answering questions about the business.
+                Keep facts current and specific.
+              </p>
+              <div className="flex items-start gap-2 rounded-[6px] border bg-muted/20 p-3 text-xs">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                <span>Only published information is shared with customers.</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <CardTitle className="text-base">A good place to start</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p>• What makes your products different?</p>
+              <p>• How long does delivery usually take?</p>
+              <p>• What can a customer return, and when?</p>
+              <p>• Which questions do you answer every day?</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
 }
 
-const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'NZD']
-function Section({ id, title, description, children, dirty, onSave }: { id: string; title: string; description: string; children: React.ReactNode; dirty?: boolean; onSave?: () => void }) { return <section id={id} className="scroll-mt-24 border-b py-8 first:pt-0"><div className="flex flex-col gap-5 md:flex-row md:justify-between"><div className="max-w-xs"><h2 className="text-lg font-semibold">{title}</h2><p className="mt-1 text-sm text-muted-foreground">{description}</p></div><div className="w-full max-w-2xl">{children}{onSave && <div className="mt-5 flex items-center justify-end gap-3"><span className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : 'All changes saved'}</span><Button size="sm" onClick={onSave}><Save className="mr-2 size-3.5" />Save {title.toLowerCase()}</Button></div>}</div></div></section> }
-function Field({ label, children, helper }: { label: string; children: React.ReactNode; helper?: string }) { return <label className="flex flex-col gap-2 text-sm font-medium">{label}{children}{helper && <span className="text-xs font-normal text-muted-foreground">{helper}</span>}</label> }
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <Button
+      variant="outline"
+      onClick={async () => {
+        await navigator.clipboard?.writeText(value)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1600)
+      }}
+    >
+      {copied ? <Check className="mr-1.5 size-4" /> : <Copy className="mr-1.5 size-4" />}
+      {copied ? 'Copied' : label}
+    </Button>
+  )
+}
+
+function PayPalForm({ onConnected }: { onConnected: (status: PayPalStatus) => void }) {
+  const [clientId, setClientId] = useState('')
+  const [clientSecret, setClientSecret] = useState('')
+  const [webhookId, setWebhookId] = useState('')
+  const [env, setEnv] = useState<'sandbox' | 'live'>('sandbox')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const connect = async () => {
+    if (!clientId.trim() || !clientSecret.trim() || !webhookId.trim()) {
+      setError('Client ID, secret, and webhook ID are required.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const status = await merchantJson<PayPalStatus>('/settings/paypal', {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id: clientId.trim(),
+          client_secret: clientSecret.trim(),
+          webhook_id: webhookId.trim(),
+          env,
+        }),
+      })
+      onConnected(status)
+    } catch (caught) {
+      setError(errorMessage(caught, 'PayPal rejected these credentials.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-3 rounded-[6px] border bg-muted/20 p-4">
+      <label className="block text-xs">
+        Client ID
+        <Input value={clientId} onChange={(event) => setClientId(event.target.value)} className="mt-1" />
+      </label>
+      <label className="block text-xs">
+        Client secret
+        <Input
+          type="password"
+          value={clientSecret}
+          onChange={(event) => setClientSecret(event.target.value)}
+          className="mt-1"
+        />
+      </label>
+      <label className="block text-xs">
+        Webhook ID
+        <Input value={webhookId} onChange={(event) => setWebhookId(event.target.value)} className="mt-1" />
+      </label>
+      <label className="block text-xs">
+        Environment
+        <select
+          value={env}
+          onChange={(event) => setEnv(event.target.value as 'sandbox' | 'live')}
+          className="mt-1 h-9 w-full rounded-[6px] border bg-background px-3 text-sm"
+        >
+          <option value="sandbox">Sandbox</option>
+          <option value="live">Live</option>
+        </select>
+      </label>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <Button size="sm" onClick={() => void connect()} disabled={busy}>
+        {busy && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+        Connect PayPal
+      </Button>
+    </div>
+  )
+}
 
 export function SettingsPage() {
-  const [name, setName] = useState('Luma Goods'); const [slug, setSlug] = useState('luma-goods'); const [currency, setCurrency] = useState('USD'); const [copied, setCopied] = useState(''); const [origin, setOrigin] = useState(''); const [environment, setEnvironment] = useState('Sandbox'); const [secret, setSecret] = useState(''); const [paypal, setPaypal] = useState<'connected' | 'not connected'>('connected'); const [refundCap, setRefundCap] = useState('100'); const [recovery, setRecovery] = useState(true); const [timeout, setTimeoutHours] = useState('24'); const [role, setRole] = useState<'owner' | 'staff'>('owner'); const [dirty, setDirty] = useState<Record<string, boolean>>({}); const [test, setTest] = useState('');
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setOrigin(window.location.origin)
+  const [settings, setSettings] = useState<MerchantSettings | null>(null)
+  const [paypal, setPaypal] = useState<PayPalStatus | null>(null)
+  const [zones, setZones] = useState<DeliveryZone[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [origin, setOrigin] = useState('')
+  const [showPayPal, setShowPayPal] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [currency, setCurrency] = useState('USD')
+  const [refundCap, setRefundCap] = useState('0')
+  const [reminderEnabled, setReminderEnabled] = useState(true)
+  const [timeoutMinutes, setTimeoutMinutes] = useState('120')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [nextSettings, nextPaypal, nextZones] = await Promise.all([
+        merchantJson<MerchantSettings>('/settings'),
+        merchantJson<PayPalStatus>('/settings/paypal').catch(() => null),
+        merchantJson<DeliveryZone[]>('/delivery-zones'),
+      ])
+      setSettings(nextSettings)
+      setPaypal(nextPaypal)
+      setZones(nextZones)
+      setCurrency(nextSettings.currency)
+      setRefundCap(nextSettings.refund_cap)
+      setReminderEnabled(nextSettings.recovery_reminder_enabled)
+      setTimeoutMinutes(String(nextSettings.recovery_timeout_minutes))
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not load your settings.'))
+    } finally {
+      setLoading(false)
     }
-  }, []);
-  const fullOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '');
-  const url = fullOrigin ? `${fullOrigin}/store/${slug}` : `https://${storeUrl(slug)}`;
-  const snippet = `<iframe src="${url}" width="100%" height="640" title="${name} storefront" />`;
-  const mark = (key: string) => setDirty((current) => ({ ...current, [key]: true }));
-  const save = (key: string) => setDirty((current) => ({ ...current, [key]: false }));
-  const copy = async (key: string, text: string) => {
-    const textToCopy = key === 'url' && typeof window !== 'undefined'
-      ? `${window.location.origin}/store/${slug}`
-      : key === 'snippet' && typeof window !== 'undefined'
-      ? `<iframe src="${window.location.origin}/store/${slug}" width="100%" height="640" title="${name} storefront" />`
-      : text;
-    await navigator.clipboard?.writeText(textToCopy);
-    setCopied(key);
-    setTimeout(() => setCopied(''), 2000);
-  };
-  return <InnerShell><main className="mx-auto max-w-7xl p-4 md:p-8"><div className="border-b pb-6"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Workspace / Settings</p><h1 className="mt-2 text-2xl font-semibold">Settings</h1><p className="mt-1 text-sm text-muted-foreground">Configure your storefront, payments, and team.</p></div><div className="grid gap-10 py-8 lg:grid-cols-[180px_minmax(0,1fr)]"><nav className="hidden self-start lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-2">{['Business','Store link','PayPal','Payments','Team'].map((item) => <a href={`#${item.toLowerCase().replace(' ', '-')}`} key={item} className="text-sm text-muted-foreground hover:text-foreground">{item}</a>)}</nav><div><Section id="business" title="Business" description="Your public business identity and checkout currency." dirty={dirty.business} onSave={() => save('business')}><div className="grid gap-4 sm:grid-cols-2"><Field label="Business name"><Input value={name} onChange={(event) => { setName(event.target.value); mark('business') }} /></Field><Field label="Store slug"><Input className="font-mono" value={slug} onChange={(event) => { setSlug(event.target.value); mark('business') }} /><span className="text-xs text-emerald-700">Available</span></Field><Field label="Currency" helper="Changing currency does not convert existing prices."><select value={currency} onChange={(event) => { setCurrency(event.target.value); mark('business') }} className="h-9 rounded-[6px] border bg-background px-3 text-sm">{currencies.map((item) => <option key={item}>{item}</option>)}</select></Field></div></Section><Section id="store-link" title="Store link" description="Share your storefront or embed it on your existing site."><div className="flex gap-2"><Input readOnly value={url} className="font-mono text-xs" suppressHydrationWarning /><Button variant="outline" onClick={() => copy('url', url)}>{copied === 'url' ? <Check className="mr-2 size-3.5 text-emerald-600" /> : <Copy className="mr-2 size-3.5" />}{copied === 'url' ? 'Copied' : 'Copy'}</Button><a href={`/store/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-[6px] border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground" title="Open store link in new tab"><ExternalLink className="size-3.5" /></a></div><div className="mt-4 rounded-[6px] border bg-muted/30 p-4"><div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>Embed snippet</span><Button variant="ghost" size="sm" className="h-7" onClick={() => copy('snippet', snippet)}>{copied === 'snippet' ? 'Copied' : 'Copy'}</Button></div><code className="block break-all font-mono text-xs leading-5" suppressHydrationWarning>{snippet}</code></div><div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">Size preset <select className="rounded border bg-background px-2 py-1"><option>Responsive</option><option>Compact</option><option>Full height</option></select></div></Section><Section id="paypal" title="PayPal" description="Connect payments so customers can complete checkout." dirty={dirty.paypal} onSave={() => save('paypal')}><Card className="rounded-[6px]"><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="text-base">PayPal connection</CardTitle><p className="mt-1 text-xs text-muted-foreground">Credentials are encrypted. Funds go straight to your PayPal account.</p></div><Badge variant={paypal === 'connected' ? 'default' : 'secondary'}>{paypal === 'connected' ? 'Connected' : 'Not connected'}</Badge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Field label="Environment"><select value={environment} onChange={(event) => { setEnvironment(event.target.value); mark('paypal') }} className="h-9 rounded-[6px] border bg-background px-3 text-sm"><option>Sandbox</option><option>Live</option></select></Field><Field label="Client ID"><Input placeholder="PayPal client ID" onChange={() => mark('paypal')} /></Field><Field label="Secret" helper={secret ? 'Saved, hidden' : 'Write-only credential'}><Input type="password" placeholder="••••••••••••" value={secret} onChange={(event) => { setSecret(event.target.value); mark('paypal') }} /></Field><div className="flex items-end gap-2"><Button variant="outline" onClick={() => setTest('success')}>Test connection</Button>{test && <span className={`text-xs ${test === 'success' ? 'text-emerald-700' : 'text-destructive'}`}>{test === 'success' ? 'Connection successful' : 'Connection failed'}</span>}</div></CardContent></Card></Section><Section id="payments" title="Payments and recovery" description="Set sensible limits for refunds and payment follow-up." dirty={dirty.payments} onSave={() => save('payments')}><div className="grid gap-4 sm:grid-cols-2"><Field label="Refund cap"><Input type="number" min="0" value={refundCap} className="font-mono" onChange={(event) => { setRefundCap(event.target.value); mark('payments') }} /></Field><label className="flex items-center gap-3 rounded border p-3 text-sm"><input type="checkbox" checked={recovery} onChange={(event) => { setRecovery(event.target.checked); mark('payments') }} />Recovery reminder</label><Field label="Payment timeout (hours)" helper="One reminder is sent, then the order expires"><Input type="number" className="font-mono" value={timeout} disabled={!recovery} onChange={(event) => { setTimeoutHours(event.target.value); mark('payments') }} /></Field></div></Section><Section id="team" title="Team" description="Invite teammates and preview role-based controls." ><div className="mb-4 flex items-center justify-between rounded border bg-muted/30 p-3 text-xs"><span className="font-medium">Dev role switcher</span><select value={role} onChange={(event) => setRole(event.target.value as 'owner' | 'staff')} className="rounded border bg-background px-2 py-1"><option value="owner">Owner</option><option value="staff">Staff</option></select></div><div className="overflow-x-auto rounded border"><table className="w-full text-left text-sm"><thead className="border-b text-xs text-muted-foreground"><tr><th className="px-3 py-2">User</th><th className="px-3 py-2">Role</th><th className="px-3 py-2">Controls</th></tr></thead><tbody><tr className="border-b"><td className="px-3 py-3">You · owner@lumagoods.com</td><td className="px-3 py-3">Owner</td><td className="px-3 py-3"><Button variant="outline" size="sm" disabled={role === 'staff'}>Manage</Button></td></tr><tr><td className="px-3 py-3">Rina Patel · rina@lumagoods.com</td><td className="px-3 py-3">Staff</td><td className="px-3 py-3"><Button variant="outline" size="sm" disabled={role === 'staff'}>Remove</Button></td></tr></tbody></table></div><div className="mt-5 flex gap-2"><Input placeholder="teammate@business.com" type="email" /><Button disabled={role === 'staff'}>Invite</Button></div><p className="mt-2 text-xs text-muted-foreground">Owner-only controls are disabled in staff preview.</p></Section></div></div></main></InnerShell>
+  }, [])
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+    setUser(getStoredUser())
+    void load()
+  }, [load])
+
+  const storeUrl = settings && origin ? `${origin}/store/${settings.slug}` : ''
+  const chatUrl = settings && origin ? `${origin}/chat/${settings.slug}` : ''
+
+  const save = async () => {
+    if (!settings || saving) return
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const next = await merchantJson<MerchantSettings>('/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          currency,
+          refund_cap: Number(refundCap) || 0,
+          recovery_reminder_enabled: reminderEnabled,
+          recovery_timeout_minutes: Math.round(Number(timeoutMinutes) || 120),
+        }),
+      })
+      setSettings(next)
+      setMessage('Settings saved')
+      setTimeout(() => setMessage(''), 2000)
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not save your settings.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const disconnectPayPal = async () => {
+    if (!window.confirm('Disconnect PayPal? New orders will not be able to request payment.')) return
+    try {
+      await merchantJson('/settings/paypal', { method: 'DELETE' })
+      setPaypal({ connected: false, env: null })
+      setSettings((current) =>
+        current ? { ...current, paypal_connected: false } : current,
+      )
+    } catch (caught) {
+      setError(errorMessage(caught, 'Could not disconnect PayPal.'))
+    }
+  }
+
+  const zoneSummary = useMemo(() => {
+    if (!zones.length) return 'No delivery zones'
+    return `${zones.length} zone${zones.length === 1 ? '' : 's'} · ${zones
+      .slice(0, 2)
+      .map((zone) => zone.name)
+      .join(', ')}${zones.length > 2 ? '…' : ''}`
+  }, [zones])
+
+  return (
+    <div className="mx-auto max-w-7xl p-4 md:p-8">
+      <div className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Workspace
+        </p>
+        <h1 className="mt-1 text-3xl">Settings</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Store identity, payments, and customer recovery.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-5 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {loading || !settings ? (
+        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 size-4 animate-spin" /> Loading settings…
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings2 className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">Store</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs text-muted-foreground">
+                  Store name
+                  <Input value={settings.name} readOnly className="mt-1" />
+                </label>
+                <label className="text-xs text-muted-foreground">
+                  Store slug
+                  <Input value={settings.slug} readOnly className="mt-1 font-mono" />
+                </label>
+              </div>
+              <label className="block text-xs text-muted-foreground">
+                Store currency
+                <select
+                  value={currency}
+                  onChange={(event) => setCurrency(event.target.value)}
+                  className="mt-1 h-9 w-full rounded-[6px] border bg-background px-3 text-sm"
+                >
+                  {['USD', 'EUR', 'GBP', 'CAD', 'AUD'].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div>
+                <p className="text-xs text-muted-foreground">Public store link</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded-[6px] border bg-muted/30 px-3 py-2 text-xs">
+                    {storeUrl}
+                  </code>
+                  <CopyButton value={storeUrl} label="Copy" />
+                </div>
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4"
+                >
+                  Open store <ExternalLink className="size-3" />
+                </a>
+              </div>
+              {chatUrl && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Direct chat link</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded-[6px] border bg-muted/30 px-3 py-2 text-xs">
+                      {chatUrl}
+                    </code>
+                    <CopyButton value={chatUrl} label="Copy" />
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{zoneSummary}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Zap className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">Customer recovery</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="block text-xs text-muted-foreground">
+                Refund cap
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={refundCap}
+                  onChange={(event) => setRefundCap(event.target.value)}
+                  className="mt-1 font-mono"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-[6px] border px-3 py-3 text-sm">
+                <span>
+                  Send recovery reminders
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Nudge customers who leave an order unpaid.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={reminderEnabled}
+                  onChange={(event) => setReminderEnabled(event.target.checked)}
+                />
+              </label>
+              <label className="block text-xs text-muted-foreground">
+                Recovery timeout (minutes)
+                <Input
+                  type="number"
+                  min="15"
+                  max="10080"
+                  value={timeoutMinutes}
+                  onChange={(event) => setTimeoutMinutes(event.target.value)}
+                  className="mt-1 font-mono"
+                />
+              </label>
+              <div className="flex items-center justify-between gap-3 border-t pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {message || 'Currency changes are blocked once products use the current currency.'}
+                </p>
+                <Button onClick={() => void save()} disabled={saving}>
+                  {saving ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Save className="mr-1.5 size-4" />}
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Link2 className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">PayPal</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant={paypal?.connected ? 'default' : 'secondary'}>
+                    {paypal?.connected ? `Connected · ${paypal.env ?? 'PayPal'}` : 'Not connected'}
+                  </Badge>
+                  {settings.paypal_connected && (
+                    <span className="text-xs text-muted-foreground">Payment links are live.</span>
+                  )}
+                </div>
+                {paypal?.connected ? (
+                  <Button variant="outline" size="sm" onClick={() => void disconnectPayPal()}>
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => setShowPayPal((value) => !value)}>
+                    {showPayPal ? 'Hide form' : 'Connect PayPal'}
+                  </Button>
+                )}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Use the credentials from your PayPal developer app. Webhook events are verified
+                before an order is marked paid.
+              </p>
+              {!paypal?.connected && showPayPal && (
+                <PayPalForm
+                  onConnected={(status) => {
+                    setPaypal(status)
+                    setSettings((current) =>
+                      current ? { ...current, paypal_connected: status.connected } : current,
+                    )
+                    setShowPayPal(false)
+                  }}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[10px]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">Team</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between rounded-[6px] border px-3 py-3">
+                <div>
+                  <p className="text-sm font-medium">{user?.email ?? 'Signed-in owner'}</p>
+                  <p className="text-xs text-muted-foreground">{user?.role ?? 'Owner'}</p>
+                </div>
+                <Badge variant="secondary">Owner</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Team invitations are not available in this workspace yet.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
 }
