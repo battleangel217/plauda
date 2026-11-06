@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BRAND_NAME, storeUrl } from '@/lib/brand'
+import { BRAND_DOMAIN, BRAND_NAME } from '@/lib/brand'
 import { saveAuth } from '@/lib/auth-client'
 import type { TokenResponse } from '@/lib/backend-types'
 import { Button } from '@/components/ui/button'
@@ -73,6 +73,34 @@ function errorMessage(status: number, detail?: string) {
   return detail || 'Something went wrong. Please try again.'
 }
 
+function DemoAccountCard({
+  action,
+  onUse,
+  busy = false,
+}: {
+  action: string
+  onUse: () => void
+  busy?: boolean
+}) {
+  return (
+    <div className="mb-5 border border-dashed border-border bg-muted/30 px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Demo account</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            For testers — use this account to explore.
+          </p>
+          <p className="mt-2 font-mono text-xs text-muted-foreground">{DEMO_EMAIL}</p>
+          <p className="font-mono text-xs text-muted-foreground">{DEMO_PASSWORD}</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onUse} disabled={busy}>
+          {busy ? 'Opening…' : action}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function AuthPage({ register }: { register: boolean }) {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -81,12 +109,15 @@ export function AuthPage({ register }: { register: boolean }) {
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
   const [error, setError] = useState('')
   const [expired, setExpired] = useState(false)
+  const [storeHost, setStoreHost] = useState(BRAND_DOMAIN)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setExpired(new URLSearchParams(window.location.search).get('expired') === '1')
+    setStoreHost(window.location.host)
   }, [])
 
   const slug = useMemo(() => slugify(businessName), [businessName])
@@ -94,6 +125,45 @@ export function AuthPage({ register }: { register: boolean }) {
   const emailInvalid = touched.email && (!email || !email.includes('@'))
   const passwordInvalid = touched.password && password.length < 8
   const mismatch = touched.confirm && password !== confirm
+
+  const requestAuth = async (
+    endpoint: '/api/auth/login' | '/api/auth/register',
+    payload: Record<string, string>,
+  ) => {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      let body: (TokenResponse & { detail?: unknown }) | { detail?: unknown } = {}
+      try {
+        body = (await response.json()) as TokenResponse & { detail?: unknown }
+      } catch {
+        // Keep the status-based error below.
+      }
+
+      if (!response.ok) {
+        const detail = 'detail' in body && typeof body.detail === 'string' ? body.detail : undefined
+        setError(errorMessage(response.status, detail))
+        return false
+      }
+
+      if (!('access_token' in body) || !body.access_token || !body.user) {
+        setError('The server returned an unexpected response. Please try again.')
+        return false
+      }
+
+      saveAuth(body.access_token, body.user)
+      router.push('/dashboard')
+      router.refresh()
+      return true
+    } catch {
+      setError('We could not reach the server. Check your connection and try again.')
+      return false
+    }
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -111,39 +181,12 @@ export function AuthPage({ register }: { register: boolean }) {
 
     setLoading(true)
     try {
-      const response = await fetch(register ? '/api/auth/register' : '/api/auth/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          register
-            ? { store_name: businessName.trim(), email: email.trim(), password }
-            : { email: email.trim(), password },
-        ),
-      })
-
-      let body: (TokenResponse & { detail?: unknown }) | { detail?: unknown } = {}
-      try {
-        body = (await response.json()) as TokenResponse & { detail?: unknown }
-      } catch {
-        // Keep the status-based error below.
-      }
-
-      if (!response.ok) {
-        const detail = 'detail' in body && typeof body.detail === 'string' ? body.detail : undefined
-        setError(errorMessage(response.status, detail))
-        return
-      }
-
-      if (!('access_token' in body) || !body.access_token || !body.user) {
-        setError('The server returned an unexpected response. Please try again.')
-        return
-      }
-
-      saveAuth(body.access_token, body.user)
-      router.push('/dashboard')
-      router.refresh()
-    } catch {
-      setError('We could not reach the server. Check your connection and try again.')
+      await requestAuth(
+        register ? '/api/auth/register' : '/api/auth/login',
+        register
+          ? { store_name: businessName.trim(), email: email.trim(), password }
+          : { email: email.trim(), password },
+      )
     } finally {
       setLoading(false)
     }
@@ -154,6 +197,17 @@ export function AuthPage({ register }: { register: boolean }) {
     setPassword(DEMO_PASSWORD)
     setTouched({})
     setError('')
+  }
+
+  const loginDemo = async () => {
+    setTouched({})
+    setError('')
+    setDemoLoading(true)
+    try {
+      await requestAuth('/api/auth/login', { email: DEMO_EMAIL, password: DEMO_PASSWORD })
+    } finally {
+      setDemoLoading(false)
+    }
   }
 
   return (
@@ -178,19 +232,19 @@ export function AuthPage({ register }: { register: boolean }) {
             </div>
           )}
 
-          {!register && (
-            <div className="mb-5 border border-dashed border-border bg-muted/30 px-3 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Demo account</p>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">{DEMO_EMAIL}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{DEMO_PASSWORD}</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={fillDemo}>
-                  Fill demo login
-                </Button>
-              </div>
-            </div>
+          <DemoAccountCard
+            action={register ? 'Sign in with demo' : 'Fill demo login'}
+            onUse={register ? loginDemo : fillDemo}
+            busy={register && demoLoading}
+          />
+
+          {error && (
+            <p
+              role="alert"
+              className="mb-5 border border-[#9B4130]/30 bg-[#9B4130]/10 px-3 py-2.5 text-sm text-[#9B4130]"
+            >
+              {error}
+            </p>
           )}
 
           <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
@@ -211,7 +265,7 @@ export function AuthPage({ register }: { register: boolean }) {
                     businessName ? 'text-muted-foreground' : 'text-muted-foreground/50'
                   }`}
                 >
-                  {storeUrl(slug)}
+                  {`${storeHost}/store/${slug}`}
                 </p>
               </div>
             )}
@@ -314,15 +368,6 @@ export function AuthPage({ register }: { register: boolean }) {
                   ? 'Create account'
                   : 'Sign in'}
             </Button>
-
-            {error && (
-              <p
-                role="alert"
-                className="border border-[#9B4130]/30 bg-[#9B4130]/10 px-3 py-2.5 text-sm text-[#9B4130]"
-              >
-                {error}
-              </p>
-            )}
           </form>
 
           <p className="mt-6 text-sm text-muted-foreground">
