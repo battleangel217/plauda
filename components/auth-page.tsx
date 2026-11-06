@@ -8,6 +8,10 @@ import type { TokenResponse } from '@/lib/backend-types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+// Public demo login shown on the sign-in page for testers.
+const DEMO_EMAIL = 'lumagoods@gmail.com'
+const DEMO_PASSWORD = 'thisisapassword'
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -145,6 +149,13 @@ export function AuthPage({ register }: { register: boolean }) {
     }
   }
 
+  const fillDemo = () => {
+    setEmail(DEMO_EMAIL)
+    setPassword(DEMO_PASSWORD)
+    setTouched({})
+    setError('')
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-background lg:flex-row">
       <BrandPanel />
@@ -164,6 +175,21 @@ export function AuthPage({ register }: { register: boolean }) {
           {expired && (
             <div className="mb-5 border border-border bg-muted/40 px-3 py-2.5 text-sm">
               Your session expired. Sign in again.
+            </div>
+          )}
+
+          {!register && (
+            <div className="mb-5 border border-dashed border-border bg-muted/30 px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Demo account</p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{DEMO_EMAIL}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{DEMO_PASSWORD}</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={fillDemo}>
+                  Fill demo login
+                </Button>
+              </div>
             </div>
           )}
 
