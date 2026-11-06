@@ -68,10 +68,11 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
       </header>
 
       <main>
-        <section className="border-b border-border/60 bg-card/40">
-          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <section className="relative overflow-hidden border-b border-border/60 bg-card/40 bg-[radial-gradient(ellipse_70%_80%_at_50%_0%,rgba(217,70,31,0.16),transparent_70%)]">
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
+          <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="mx-auto grid size-16 place-items-center rounded-[14px] bg-primary text-primary-foreground shadow-sm">
+              <div className="mx-auto grid size-16 place-items-center rounded-[14px] border border-white/10 bg-primary-gradient text-primary-foreground shadow-sm">
                 <Sparkles className="size-7" strokeWidth={1.5} />
               </div>
               <p className="mt-6 text-[11px] font-semibold uppercase tracking-widest text-primary">
@@ -93,7 +94,7 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
                 >
                   <MessageSquare className="mr-2 size-4" /> Chat with the AI assistant
                 </a>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-[#3F6B4F]">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-300">
                   <span className="size-1.5 rounded-full bg-emerald-500" /> AI assistant online
                 </span>
               </div>
@@ -133,7 +134,7 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
                 desc: 'Review the order on a separate checkout page, then pay with PayPal. Plauda never sees your card details.',
               },
             ].map(({ icon: Icon, step, title, desc }) => (
-              <div key={step} className="rounded-[12px] border border-border/60 bg-card p-5">
+              <div key={step} className="rounded-[12px] border border-border/60 bg-card p-5 transition-colors hover:border-primary/30">
                 <div className="flex items-center justify-between">
                   <div className="grid size-9 place-items-center rounded-full bg-muted">
                     <Icon className="size-4 text-muted-foreground" />
@@ -146,7 +147,8 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
             ))}
           </div>
 
-          <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-[12px] border border-border/60 bg-muted/30 px-5 py-5 sm:flex-row">
+          <div className="relative mt-8 flex flex-col items-center justify-between gap-4 overflow-hidden rounded-[12px] border border-border/60 bg-muted/30 bg-[radial-gradient(ellipse_70%_120%_at_50%_0%,rgba(217,70,31,0.10),transparent_70%)] px-5 py-5 sm:flex-row">
+            <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)] opacity-60" />
             <div className="flex items-center gap-3">
               <ShieldCheck className="size-5 text-muted-foreground" />
               <div>
@@ -184,7 +186,7 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
             </a>
           </p>
           <button onClick={copyStoreLink} className="flex items-center gap-1 hover:text-foreground">
-            {copied ? <Check className="size-3 text-emerald-600" /> : <Clipboard className="size-3" />}
+            {copied ? <Check className="size-3 text-emerald-400" /> : <Clipboard className="size-3" />}
             {copied ? 'Link copied' : 'Copy store link'}
           </button>
         </div>

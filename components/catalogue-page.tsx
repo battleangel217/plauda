@@ -310,6 +310,7 @@ export function CataloguePage() {
               Catalogue
             </p>
             <h1 className="mt-1 text-3xl">Products</h1>
+            <span className="mt-3 block h-px w-20 bg-[linear-gradient(90deg,var(--primary),transparent)]" />
           </div>
           {tab === 'products' ? (
             <Button onClick={() => setDraft(newProductDraft())}>
@@ -366,6 +367,7 @@ export function CataloguePage() {
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"
+                className="accent-primary"
                 checked={activeOnly}
                 onChange={(event) => setActiveOnly(event.target.checked)}
               />
@@ -412,7 +414,7 @@ export function CataloguePage() {
                         <td className="py-3 font-mono">
                           {formatMoney(product.price, product.currency)}
                         </td>
-                        <td className={`py-3 font-mono ${stock !== null && stock < 5 ? 'text-amber-700' : ''}`}>
+                        <td className={`py-3 font-mono ${stock !== null && stock < 5 ? 'text-amber-300' : ''}`}>
                           {stock === null ? '—' : stock}
                         </td>
                         <td className="py-3">
@@ -655,6 +657,7 @@ function ProductDrawer({
               Active
               <input
                 type="checkbox"
+                className="accent-primary"
                 checked={draft.active}
                 onChange={(event) => update({ active: event.target.checked })}
               />

@@ -34,12 +34,12 @@ const filters: Array<{ value: Filter; label: string }> = [
 ]
 
 const statusColors: Record<string, string> = {
-  paid: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
-  fulfilled: 'bg-blue-500/10 text-blue-700 border-blue-500/20',
-  pending_payment: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
-  cancelled: 'bg-red-500/10 text-red-600 border-red-500/20',
+  paid: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+  fulfilled: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+  pending_payment: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+  cancelled: 'bg-red-500/10 text-red-300 border-red-500/30',
   expired: 'bg-muted text-muted-foreground border-border',
-  confirmed: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+  confirmed: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
   draft: 'bg-muted text-muted-foreground border-border',
 }
 
@@ -397,6 +397,7 @@ export function OrdersPage({ detailId }: { detailId?: string }) {
             <p className="mt-1 text-sm text-muted-foreground">
               Payments, fulfilment, and refunds in one place.
             </p>
+            <span className="mt-3 block h-px w-20 bg-[linear-gradient(90deg,var(--primary),transparent)]" />
           </div>
           <p className="font-mono text-xs text-muted-foreground">
             {total} order{total === 1 ? '' : 's'} total

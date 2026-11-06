@@ -63,7 +63,7 @@ function Nav() {
             </a>
             <a
               href="/register"
-              className="inline-flex items-center justify-center rounded-full px-5 h-9 border border-border/50 bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-all"
+              className="inline-flex items-center justify-center rounded-full px-5 h-9 border border-white/10 bg-primary-gradient text-primary-foreground text-[13.5px] font-medium hover:brightness-110 transition-all"
             >
               Start Free Trial
             </a>
@@ -115,7 +115,7 @@ function Nav() {
             ))}
           </nav>
           <div className="flex flex-col gap-3 pt-8">
-            <a href="/register" className="flex items-center justify-center w-full h-13 rounded-2xl bg-foreground text-background font-bold text-base hover:opacity-90 transition-all">
+            <a href="/register" className="flex items-center justify-center w-full h-13 rounded-2xl border border-white/10 bg-primary-gradient text-primary-foreground font-bold text-base hover:brightness-110 transition-all">
               Start Free Trial
             </a>
             <a href="/login" className="flex items-center justify-center w-full h-13 rounded-2xl border border-border text-foreground hover:bg-muted/50 font-medium text-base transition-all">
@@ -228,7 +228,7 @@ function HeroPreview() {
                 <span className="text-[11px] font-semibold">Total</span>
                 <span className="font-mono text-[12px] font-semibold">$34.00</span>
               </div>
-              <div className="mt-2 flex h-8 items-center justify-center gap-1.5 rounded-[6px] bg-foreground text-[11px] font-medium text-background">
+              <div className="mt-2 flex h-8 items-center justify-center gap-1.5 rounded-[6px] border border-white/10 bg-primary-gradient text-[11px] font-medium text-primary-foreground">
                 Review &amp; pay <ArrowUpRight className="size-3" />
               </div>
             </div>
@@ -241,7 +241,7 @@ function HeroPreview() {
 
 function Hero() {
   return (
-    <section className="relative flex min-h-[100svh] flex-col overflow-hidden">
+    <section className="relative flex min-h-[100svh] flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(217,70,31,0.12),transparent_70%)]">
       <div className="relative z-10 flex flex-col items-center text-center gap-6 pt-32 pb-10 px-6 sm:pt-36">
         <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
           <span className="w-5 h-px bg-primary" />
@@ -249,7 +249,7 @@ function Hero() {
         </div>
         <h1 className="font-serif font-medium text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.08] max-w-2xl">
           <span className="text-foreground block">Your business deserves</span>
-          <span className="text-muted-foreground/40 block">an AI employee.</span>
+          <span className="text-gradient-primary block">an AI employee.</span>
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base leading-relaxed max-w-lg">
           {BRAND_NAME} gives your business a shareable storefront and an AI chat assistant that
@@ -258,7 +258,7 @@ function Hero() {
         <div className="flex flex-row items-center justify-center gap-3 flex-wrap pt-1">
           <a
             href="/register"
-            className="inline-flex items-center justify-center h-11 px-8 rounded-full bg-foreground text-background font-semibold text-sm hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="inline-flex items-center justify-center h-11 px-8 rounded-full border border-white/10 bg-primary-gradient text-primary-foreground font-semibold text-sm hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             Start Free Trial
           </a>
@@ -314,7 +314,7 @@ function Problem() {
           </div>
           <div className="flex flex-col gap-3">
             {stats.map(({ value, desc, source }) => (
-              <div key={value} className="rounded-2xl border border-border/50 bg-card p-6 flex items-start gap-5 hover:border-border transition-all duration-300">
+              <div key={value} className="rounded-2xl border border-border/50 bg-card p-6 flex items-start gap-5 hover:border-primary/30 transition-all duration-300">
                 <div className="flex-shrink-0">
                   <span className="font-serif font-medium text-3xl sm:text-4xl text-foreground tracking-tight leading-none">{value}</span>
                 </div>
@@ -368,7 +368,7 @@ function Features() {
             {features.map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col gap-4 hover:border-border transition-all duration-300"
+                className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col gap-4 hover:border-primary/30 transition-all duration-300"
               >
                 <div className="w-9 h-9 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center text-muted-foreground">
                   <Icon className="size-[17px]" />
@@ -382,7 +382,7 @@ function Features() {
           </div>
 
           {/* Summary card */}
-          <div className="rounded-2xl border border-border/50 bg-card p-8 flex flex-col justify-between hover:border-border transition-all duration-300">
+          <div className="rounded-2xl border border-border/50 bg-card p-8 flex flex-col justify-between hover:border-primary/30 transition-all duration-300">
             <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest">All-in-one</span>
             <div className="space-y-5 pt-8">
               <div className="space-y-2">
@@ -396,7 +396,7 @@ function Features() {
               </div>
               <a
                 href="/register"
-                className="w-full h-11 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-xl border border-white/10 bg-primary-gradient text-primary-foreground text-sm font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
                 Start Free Trial
                 <ArrowUpRight className="size-[15px]" />
@@ -451,7 +451,7 @@ function HowItWorks() {
           {steps.map(({ step, title, desc, offset }) => (
             <div
               key={step}
-              className={`rounded-2xl border border-border/50 bg-card p-7 flex flex-col gap-10 hover:border-border transition-all duration-300 ${
+              className={`rounded-2xl border border-border/50 bg-card p-7 flex flex-col gap-10 hover:border-primary/30 transition-all duration-300 ${
                 offset ? 'md:translate-y-10' : ''
               }`}
             >
@@ -551,7 +551,7 @@ function Pricing() {
               className={`relative h-5 w-10 rounded-full border transition-colors ${annual ? 'bg-primary border-primary' : 'bg-muted border-border'}`}
             >
               <span
-                className={`absolute top-0.5 size-3.5 rounded-full bg-background transition-transform ${annual ? 'translate-x-5' : 'translate-x-0.5'}`}
+                className={`absolute top-0.5 size-3.5 rounded-full bg-primary-foreground transition-transform ${annual ? 'translate-x-5' : 'translate-x-0.5'}`}
               />
             </button>
             <span className={annual ? 'font-medium text-foreground' : 'text-muted-foreground'}>
@@ -569,7 +569,7 @@ function Pricing() {
                 className={`rounded-2xl border p-8 flex flex-col gap-6 transition-all duration-300 ${
                   highlighted
                     ? 'border-primary/50 bg-primary/5 relative overflow-hidden'
-                    : 'border-border/50 bg-card hover:border-border'
+                    : 'border-border/50 bg-card hover:border-primary/30'
                 }`}
               >
                 {highlighted && (
@@ -607,7 +607,7 @@ function Pricing() {
                   href={href}
                   className={`flex items-center justify-center w-full h-11 rounded-xl text-sm font-medium transition-all ${
                     highlighted
-                      ? 'bg-foreground text-background hover:opacity-90'
+                      ? 'border border-white/10 bg-primary-gradient text-primary-foreground hover:brightness-110'
                       : 'border border-border text-foreground hover:bg-muted/50'
                   }`}
                 >
@@ -627,11 +627,12 @@ function Pricing() {
 
 function CTA() {
   return (
-    <section className="py-24 sm:py-32 px-6 border-t border-border/50">
+    <section className="relative py-24 sm:py-32 px-6 border-t border-border/50">
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
       <div className="max-w-[1240px] mx-auto text-center space-y-8">
         <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
           <span className="text-foreground block">Your shop, answering</span>
-          <span className="text-muted-foreground/40 block">customers at 3am.</span>
+          <span className="text-gradient-primary block">customers at 3am.</span>
         </h2>
         <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md mx-auto">
           Set up your storefront and AI assistant in minutes. Turn conversations into paid orders.
@@ -639,7 +640,7 @@ function CTA() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
             href="/register"
-            className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-foreground text-background font-semibold text-sm hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-white/10 bg-primary-gradient text-primary-foreground font-semibold text-sm hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             Start Free Trial
             <ArrowUpRight className="ml-2 size-4" />

@@ -100,7 +100,7 @@ function MessageBubble({ message }: { message: ApiMessage }) {
     if (message.meta?.kind === 'payment') {
       return (
         <div className="flex justify-center py-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-300">
             <Check className="size-3.5" />
             {message.content}
           </div>
@@ -405,6 +405,7 @@ export function InboxPage() {
               Inbox
             </p>
             <h1 className="mt-1 text-3xl">Conversations</h1>
+            <span className="mt-3 block h-px w-20 bg-[linear-gradient(90deg,var(--primary),transparent)]" />
           </div>
           <p className="font-mono text-xs text-muted-foreground">
             {total} conversation{total === 1 ? '' : 's'}
@@ -576,7 +577,7 @@ export function InboxPage() {
 
               <div className="border-t px-4 py-3">
                 {selected.status === 'handoff_requested' && (
-                  <p className="mb-2 text-xs text-amber-700 dark:text-amber-300">
+                  <p className="mb-2 text-xs text-amber-300">
                     {selected.handoff_reason || 'The customer asked for a human.'} Accept the handoff to reply.
                   </p>
                 )}

@@ -25,7 +25,7 @@ function Receipt() {
     <div className="mt-8 w-full max-w-[300px] border border-border bg-card p-4">
       <div className="flex items-center justify-between text-xs">
         <span className="font-mono text-muted-foreground">ORDER #PLD-1048</span>
-        <span className="border border-[#3F6B4F]/30 px-2 py-0.5 text-[10px] font-medium text-[#3F6B4F]">
+        <span className="border border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
           Paid
         </span>
       </div>
@@ -56,9 +56,10 @@ function BrandPanel() {
       <a href="/login" className="font-serif text-2xl font-semibold lowercase tracking-tight">
         {BRAND_NAME}
       </a>
-      <div className="mt-12 lg:mt-auto">
+      <div className="relative isolate mt-12 lg:mt-auto">
+        <div className="pointer-events-none absolute -left-20 top-0 -z-10 size-80 rounded-full bg-primary/10 blur-3xl" />
         <p className="max-w-md font-serif text-4xl leading-[1.05] tracking-tight md:text-5xl">
-          Your shop, answering customers at 3am.
+          Your shop, answering <span className="text-gradient-primary">customers at 3am.</span>
         </p>
         <Receipt />
       </div>
@@ -211,7 +212,7 @@ export function AuthPage({ register }: { register: boolean }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background lg:flex-row">
+    <main className="flex min-h-screen flex-col bg-background bg-[radial-gradient(ellipse_60%_45%_at_80%_0%,rgba(217,70,31,0.08),transparent_70%)] lg:flex-row">
       <BrandPanel />
       <section className="flex flex-1 items-center px-6 py-10 md:px-10 lg:px-16">
         <div className="w-full max-w-[380px]">
@@ -241,7 +242,7 @@ export function AuthPage({ register }: { register: boolean }) {
           {error && (
             <p
               role="alert"
-              className="mb-5 border border-[#9B4130]/30 bg-[#9B4130]/10 px-3 py-2.5 text-sm text-[#9B4130]"
+              className="mb-5 border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
             >
               {error}
             </p>
@@ -285,7 +286,7 @@ export function AuthPage({ register }: { register: boolean }) {
                 aria-invalid={emailInvalid}
               />
               {emailInvalid && (
-                <p className="mt-1.5 text-xs text-[#9B4130]">Enter a valid email address.</p>
+                <p className="mt-1.5 text-xs text-destructive">Enter a valid email address.</p>
               )}
             </div>
 
@@ -316,7 +317,7 @@ export function AuthPage({ register }: { register: boolean }) {
                 <div className="mt-2 flex items-center gap-2">
                   <div className="h-0.5 flex-1 bg-border">
                     <div
-                      className="h-full bg-foreground transition-all"
+                      className="h-full bg-primary-gradient transition-all"
                       style={{
                         width:
                           password.length >= 12
@@ -333,7 +334,7 @@ export function AuthPage({ register }: { register: boolean }) {
                 </div>
               )}
               {passwordInvalid && (
-                <p className="mt-1.5 text-xs text-[#9B4130]">
+                <p className="mt-1.5 text-xs text-destructive">
                   Password must be at least 8 characters.
                 </p>
               )}
@@ -354,7 +355,7 @@ export function AuthPage({ register }: { register: boolean }) {
                   aria-invalid={mismatch}
                 />
                 {mismatch && (
-                  <p className="mt-1.5 text-xs text-[#9B4130]">Passwords do not match.</p>
+                  <p className="mt-1.5 text-xs text-destructive">Passwords do not match.</p>
                 )}
               </div>
             )}

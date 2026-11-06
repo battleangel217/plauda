@@ -12,12 +12,10 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Moon,
   Package,
   Settings,
   ShoppingBag,
   Sparkles,
-  Sun,
   X,
 } from 'lucide-react'
 import { BRAND_NAME } from '@/lib/brand'
@@ -51,7 +49,6 @@ function Logo() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [dark, setDark] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [copied, setCopied] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -65,11 +62,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-
-  // Sync dark mode
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-  }, [dark])
 
   // Close mobile nav on route change
   useEffect(() => {
@@ -157,7 +149,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_60%_50%_at_15%_0%,rgba(217,70,31,0.10),transparent_70%)]">
       {/* Mobile overlay */}
       {mobile && (
         <div
@@ -214,7 +206,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* AI Status card */}
-        <div className="mt-auto rounded-[6px] border border-border bg-muted/40 p-3">
+        <div className="relative mt-auto overflow-hidden rounded-[6px] border border-border bg-muted/40 bg-[radial-gradient(circle_at_50%_0%,rgba(217,70,31,0.14),transparent_65%)] p-3">
+          <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
           <div className="flex items-center gap-2">
             <span className="size-1.5 rounded-full bg-emerald-500" />
             <p className="text-xs font-medium">Your AI employee is live</p>
@@ -275,19 +268,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
               aria-label="Copy store link"
             >
               {copied ? (
-                <Check className="mr-2 size-3.5 text-emerald-600" />
+                <Check className="mr-2 size-3.5 text-emerald-400" />
               ) : (
                 <Clipboard className="mr-2 size-3.5" />
               )}
               {copied ? 'Copied!' : 'Copy store link'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDark(!dark)}
-              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
             <Button
               variant="ghost"

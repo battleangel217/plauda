@@ -127,6 +127,7 @@ export function BusinessInfoPage() {
           Everything here becomes source material for your assistant. Write it the way you would
           explain it to a new customer.
         </p>
+        <span className="mt-3 block h-px w-20 bg-[linear-gradient(90deg,var(--primary),transparent)]" />
       </div>
 
       {error && (
@@ -429,6 +430,7 @@ export function SettingsPage() {
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           Store identity, payments, and customer recovery.
         </p>
+        <span className="mt-3 block h-px w-20 bg-[linear-gradient(90deg,var(--primary),transparent)]" />
       </div>
 
       {error && (
@@ -535,6 +537,7 @@ export function SettingsPage() {
                 </span>
                 <input
                   type="checkbox"
+                  className="accent-primary"
                   checked={reminderEnabled}
                   onChange={(event) => setReminderEnabled(event.target.checked)}
                 />

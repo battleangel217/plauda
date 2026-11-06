@@ -103,7 +103,7 @@ function LoadingScreen() {
 
 function MissingOrder() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_60%_45%_at_50%_0%,rgba(217,70,31,0.10),transparent_70%)]">
       <Header />
       <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
         <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
@@ -116,7 +116,7 @@ function MissingOrder() {
         </p>
         <a
           href="/"
-          className="mt-6 inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+          className="mt-6 inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
         >
           Back to Plauda
         </a>
@@ -129,14 +129,15 @@ function PaidState({ snapshot }: { snapshot: StoredOrder }) {
   const { order, merchantName, merchantSlug } = snapshot
   return (
     <div className="mx-auto mt-10 max-w-lg text-center">
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-500/10 text-[#3F6B4F]">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-300">
         <Check className="size-7" />
       </div>
       <h1 className="mt-6 font-serif text-3xl tracking-tight">Payment confirmed</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Order <span className="font-mono text-foreground">{order.id}</span> has been paid.
       </p>
-      <Card className="mt-8 rounded-[10px] text-left">
+      <Card className="relative mt-8 overflow-hidden rounded-[10px] text-left">
+        <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
         <CardContent className="space-y-3 p-5 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total paid</span>
@@ -157,7 +158,7 @@ function PaidState({ snapshot }: { snapshot: StoredOrder }) {
       <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
         <a
           href={`/chat/${merchantSlug}`}
-          className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+          className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
         >
           Return to chat
         </a>
@@ -177,7 +178,7 @@ function SubmittedState({ snapshot }: { snapshot: StoredOrder | null }) {
   const order = snapshot?.order
   return (
     <div className="mx-auto mt-10 max-w-lg text-center">
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-amber-500/10 text-amber-300">
         <Clock className="size-7" />
       </div>
       <h1 className="mt-6 font-serif text-3xl tracking-tight">Payment submitted</h1>
@@ -186,7 +187,8 @@ function SubmittedState({ snapshot }: { snapshot: StoredOrder | null }) {
         {merchantSlug ? ' Return to the chat for live updates.' : ''}
       </p>
       {order && (
-        <Card className="mt-8 rounded-[10px] text-left">
+        <Card className="relative mt-8 overflow-hidden rounded-[10px] text-left">
+          <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
           <CardContent className="space-y-3 p-5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order</span>
@@ -209,7 +211,7 @@ function SubmittedState({ snapshot }: { snapshot: StoredOrder | null }) {
         {merchantSlug && (
           <a
             href={`/chat/${merchantSlug}`}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
           >
             Return to chat
           </a>
@@ -268,7 +270,7 @@ export function CheckoutPage({ orderId }: { orderId: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_60%_45%_at_50%_0%,rgba(217,70,31,0.10),transparent_70%)]">
       <Header storeHref={storeHref} />
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -298,7 +300,7 @@ export function CheckoutPage({ orderId }: { orderId: string }) {
             </p>
             <a
               href={chatHref}
-              className="mt-6 inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+              className="mt-6 inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
             >
               Return to chat
             </a>
@@ -312,7 +314,7 @@ export function CheckoutPage({ orderId }: { orderId: string }) {
                 Checkout
               </p>
               <h1 className="mt-1 font-serif text-3xl tracking-tight sm:text-4xl">
-                Review your order
+                <span className="text-gradient-primary">Review your order</span>
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Order <span className="font-mono text-foreground">{order.id}</span> with{' '}
@@ -377,7 +379,8 @@ export function CheckoutPage({ orderId }: { orderId: string }) {
               </div>
 
               <aside>
-                <Card className="rounded-[10px] lg:sticky lg:top-6">
+                <Card className="relative overflow-hidden rounded-[10px] lg:sticky lg:top-6">
+                  <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
                   <CardHeader className="px-5 py-4">
                     <CardTitle className="text-base">Order summary</CardTitle>
                   </CardHeader>
@@ -459,7 +462,7 @@ function NotCompletedState({
         {orderId && snapshot && (
           <a
             href={`/checkout/${orderId}`}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
           >
             Return to checkout
           </a>
@@ -475,7 +478,7 @@ function NotCompletedState({
         {!snapshot && (
           <a
             href="/"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-primary-gradient px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
           >
             Back to Plauda
           </a>
@@ -524,7 +527,7 @@ export function CheckoutResultPage() {
   const paid = snapshot?.order.status === 'paid' || snapshot?.order.status === 'fulfilled'
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_60%_45%_at_50%_0%,rgba(217,70,31,0.10),transparent_70%)]">
       <Header storeHref={snapshot ? `/store/${snapshot.merchantSlug}` : '/'} />
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
         {paid ? (

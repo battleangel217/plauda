@@ -86,7 +86,7 @@ function Message({ message }: { message: UiMessage }) {
       <div className="flex shrink-0 justify-center py-1">
         <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] text-muted-foreground">
           {message.role === 'tool' ? (
-            <Check className="size-3 text-[#3F6B4F]" />
+            <Check className="size-3 text-emerald-400" />
           ) : (
             <CreditCard className="size-3" />
           )}
@@ -189,7 +189,7 @@ function OrderCard({
             <a
               href={`/checkout/${order.id}`}
               onClick={() => saveOrderSnapshot(order, { slug, name: merchantName })}
-              className="flex h-9 w-full items-center justify-center rounded-[6px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90"
+              className="flex h-9 w-full items-center justify-center rounded-[6px] border border-white/10 bg-primary-gradient text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
             >
               Review &amp; pay
               <ArrowUpRight className="ml-1 size-4" />
@@ -199,7 +199,7 @@ function OrderCard({
             </p>
           </>
         ) : paid ? (
-          <p className="flex items-center justify-center gap-2 text-sm font-medium text-[#3F6B4F]">
+          <p className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-300">
             <Check className="size-4" /> Payment confirmed
           </p>
         ) : order.status === 'confirmed' ? (
@@ -602,7 +602,7 @@ export function ChatThread({
     <div className="flex h-full min-h-0 flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground">
+          <div className="grid size-9 place-items-center rounded-full border border-white/10 bg-primary-gradient text-primary-foreground">
             <Sparkles className="size-4" strokeWidth={1.5} />
           </div>
           <div>
@@ -649,13 +649,13 @@ export function ChatThread({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
         <div className="flex min-h-full flex-col gap-3">
           {status === 'handoff_requested' && (
-            <div className="rounded-[6px] border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-800 dark:text-amber-300">
+            <div className="rounded-[6px] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
               A person from {merchantName} has been notified and will reply here.
             </div>
           )}
 
           {status === 'human_active' && (
-            <div className="rounded-[6px] border border-blue-500/25 bg-blue-500/10 px-3 py-2 text-center text-xs text-blue-800 dark:text-blue-300">
+            <div className="rounded-[6px] border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-center text-xs text-blue-300">
               A person from {merchantName} is in this chat.
             </div>
           )}
