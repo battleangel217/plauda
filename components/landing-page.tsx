@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowUpRight, Bot, Check, CreditCard, Languages, LayoutDashboard, MessageSquare, Package, ShoppingBag, Sparkles, Store, X, Menu } from 'lucide-react'
+import { ArrowUpRight, Bot, Check, ChevronsRight, CreditCard, Languages, LayoutDashboard, MessageSquare, Package, ShoppingBag, Sparkles, Store, X, Menu } from 'lucide-react'
 import { BRAND_NAME } from '@/lib/brand'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -625,31 +625,96 @@ function Pricing() {
 
 // ─── CTA ──────────────────────────────────────────────────────────────────────
 
+const CHART_VALUES = [
+  333, 223, 252, 289, 258, 232, 238, 217, 126, 178, 100, 91, 156, 89, 47, 113, 130, 187, 212,
+  302, 192, 131, 169, 157, 136, 201, 149, 227, 114, 203, 270, 277, 284, 268, 250, 220, 139, 143,
+  212, 144, 121, 119, 88, 140, 194, 174, 146, 162, 164, 142, 125, 166, 150, 141, 187, 198, 125,
+  338, 229, 226, 266, 251, 230, 196, 187, 138, 179, 126, 118, 180, 87, 176, 206, 153, 167, 152,
+  259, 151, 105, 97, 134, 95, 135, 197, 141, 217, 231, 253, 235, 233, 264, 202, 209, 150, 204,
+  282,
+]
+
+const CHART_POINTS = CHART_VALUES.map(
+  (y, index) => `${(index / (CHART_VALUES.length - 1)) * 1200},${y}`,
+).join(' ')
+
 function CTA() {
   return (
-    <section className="py-24 sm:py-32 px-6 border-t border-border/50">
-      <div className="max-w-[1240px] mx-auto text-center space-y-8">
-        <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-          <span className="text-foreground block">Your shop, answering</span>
-          <span className="text-muted-foreground/40 block">customers at 3am.</span>
-        </h2>
-        <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md mx-auto">
-          Set up your storefront and AI assistant in minutes. Turn conversations into paid orders.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="/register"
-            className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-foreground text-background font-semibold text-sm hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            Start Free Trial
-            <ArrowUpRight className="ml-2 size-4" />
-          </a>
-          <a
-            href="/login"
-            className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-border text-foreground hover:bg-muted/50 font-medium text-sm transition-all"
-          >
-            Sign in
-          </a>
+    <section className="relative overflow-hidden border-y border-[#D6B24A]/20 bg-[#080806] px-4 py-20 sm:px-6 sm:py-28">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 1200 360"
+          preserveAspectRatio="none"
+        >
+          <line
+            x1="0"
+            y1="180"
+            x2="1200"
+            y2="180"
+            stroke="#D6B24A"
+            strokeOpacity="0.08"
+            strokeDasharray="2 8"
+          />
+          <polyline
+            points={CHART_POINTS}
+            fill="none"
+            stroke="#D6B24A"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(214,178,74,0.45))' }}
+          />
+        </svg>
+        <div className="absolute left-1/2 top-1/2 size-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#D6B24A]/10 sm:size-[42rem]" />
+        <div className="absolute left-1/2 top-1/2 size-[20rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#D6B24A]/10 sm:size-[30rem]" />
+        <div className="absolute left-1/2 top-1/2 size-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(214,178,74,0.14),transparent_62%)] sm:size-[42rem]" />
+      </div>
+
+      <div className="relative mx-auto max-w-[1180px] border border-[#D6B24A]/60 bg-[#0A0A07]/95 px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">
+        <div className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.24em] text-[#D6B24A]">
+              <span className="size-1.5 bg-[#D6B24A]" />
+              Ready to sell
+            </div>
+            <h2 className="mt-6 max-w-2xl font-serif text-4xl leading-[1.05] tracking-tight text-[#F4EEDC] sm:text-5xl lg:text-6xl">
+              Your shop, answering <span className="text-[#D6B24A]">customers at 3am.</span>
+            </h2>
+            <p className="mt-5 max-w-xl text-sm leading-relaxed text-[#A8A295] sm:text-base">
+              Set up your storefront and AI assistant in minutes. Turn conversations into paid
+              orders.
+            </p>
+          </div>
+
+          <div className="flex min-w-[190px] flex-col gap-2">
+            <a
+              href="/register"
+              className="inline-flex h-10 items-center justify-between gap-4 bg-[#D6B24A] px-4 font-mono text-[10px] uppercase tracking-[0.2em] text-[#080806] transition-colors hover:bg-[#E5C669]"
+            >
+              Start free trial
+              <ChevronsRight className="size-4" />
+            </a>
+            <a
+              href="/login"
+              className="inline-flex h-10 items-center justify-between gap-4 border border-[#D6B24A]/50 px-4 font-mono text-[10px] uppercase tracking-[0.2em] text-[#F4EEDC] transition-colors hover:bg-[#D6B24A]/10"
+            >
+              Sign in
+              <ChevronsRight className="size-4 text-[#D6B24A]" />
+            </a>
+            <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.2em] text-[#6F6A5F]">
+              No card required // 24/7
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center justify-between border-t border-[#D6B24A]/20 pt-4 font-mono text-[9px] uppercase tracking-[0.2em] text-[#6F6A5F]">
+          <span>{BRAND_NAME} // AI sales infrastructure</span>
+          <span className="hidden items-center gap-2 sm:flex">
+            <span className="size-1.5 rounded-full bg-[#D6B24A]" />
+            Status: online
+          </span>
         </div>
       </div>
     </section>
