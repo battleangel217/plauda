@@ -57,6 +57,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [handoffCount, setHandoffCount] = useState(0)
   const [greeting, setGreeting] = useState('Welcome back')
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Sync dark mode
   useEffect(() => {
@@ -230,7 +238,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top header */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/95 backdrop-blur-sm px-4 md:px-8">
+        <header
+          className={`sticky top-0 z-10 flex h-16 items-center justify-between border-b px-4 transition-[background-color,border-color] duration-300 md:px-8 ${
+            scrolled
+              ? 'border-border bg-background/95 backdrop-blur-md'
+              : 'border-border/60 bg-background/80 backdrop-blur-sm'
+          }`}
+        >
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"

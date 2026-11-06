@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Reveal, useReveal } from '@/components/reveal'
 import { merchantJson } from '@/lib/merchant-client'
 import { getStoredUser } from '@/lib/auth-client'
 import type {
@@ -81,6 +82,7 @@ export function DashboardPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [storeHref, setStoreHref] = useState('/')
   const [today, setToday] = useState('')
+  const lowerReveal = useReveal(80)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -176,26 +178,32 @@ export function DashboardPage() {
           </div>
         )}
 
-        {loading && !summary ? (
-          loadingCards()
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {stats.map(({ title, value, detail, icon: Icon }) => (
-              <Card key={title} className="rounded-[10px]">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">{title}</p>
-                    <Icon className="size-4 text-muted-foreground" />
-                  </div>
-                  <p className="mt-4 text-2xl font-semibold">{value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <Reveal>
+          {loading && !summary ? (
+            loadingCards()
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {stats.map(({ title, value, detail, icon: Icon }) => (
+                <Card key={title} className="rounded-[10px]">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">{title}</p>
+                      <Icon className="size-4 text-muted-foreground" />
+                    </div>
+                    <p className="mt-4 text-2xl font-semibold">{value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </Reveal>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <div
+          ref={lowerReveal.ref}
+          className={`mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr] ${lowerReveal.className}`}
+          style={lowerReveal.style}
+        >
           <Card className="rounded-[10px]">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
