@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowUpRight, Bot, Check, CreditCard, Languages, LayoutDashboard, MessageSquare, Package, ShoppingBag, Sparkles, Store, X, Menu } from 'lucide-react'
 import { BRAND_NAME } from '@/lib/brand'
+import { Reveal } from '@/components/reveal'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -289,19 +290,21 @@ function Problem() {
   return (
     <section id="problem" className="py-24 sm:py-32 px-6 border-t border-border/50">
       <div className="max-w-[1240px] mx-auto space-y-16">
-        <div className="space-y-4 max-w-3xl">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
-            <span className="w-5 h-px bg-primary" />
-            The Challenge
+        <Reveal>
+          <div className="space-y-4 max-w-3xl">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
+              <span className="w-5 h-px bg-primary" />
+              The Challenge
+            </div>
+            <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
+              <span className="text-foreground block">The problem isn't finding customers.</span>
+              <span className="text-muted-foreground/40 block">It's being available when they reach out.</span>
+            </h2>
           </div>
-          <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-            <span className="text-foreground block">The problem isn't finding customers.</span>
-            <span className="text-muted-foreground/40 block">It's being available when they reach out.</span>
-          </h2>
-        </div>
+        </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div className="space-y-6 lg:pr-8">
+          <Reveal className="space-y-6 lg:pr-8">
             <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
               Businesses lose sales and waste hours because they can't respond to every customer,
               answer repetitive questions, recommend products, and process orders quickly and consistently.
@@ -311,18 +314,20 @@ function Problem() {
                 "When a buyer messages late at night to order or ask questions, waiting until morning often means losing that sale."
               </p>
             </div>
-          </div>
+          </Reveal>
           <div className="flex flex-col gap-3">
-            {stats.map(({ value, desc, source }) => (
-              <div key={value} className="rounded-2xl border border-border/50 bg-card p-6 flex items-start gap-5 hover:border-primary/30 transition-all duration-300">
-                <div className="flex-shrink-0">
-                  <span className="font-serif font-medium text-3xl sm:text-4xl text-foreground tracking-tight leading-none">{value}</span>
+            {stats.map(({ value, desc, source }, index) => (
+              <Reveal key={value} delay={index * 80}>
+                <div className="rounded-2xl border border-border/50 bg-card p-6 flex items-start gap-5 hover:border-primary/30 transition-all duration-300">
+                  <div className="flex-shrink-0">
+                    <span className="font-serif font-medium text-3xl sm:text-4xl text-foreground tracking-tight leading-none">{value}</span>
+                  </div>
+                  <div className="space-y-1 pt-1">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                    <p className="text-[11px] font-medium text-muted-foreground/50">{source}</p>
+                  </div>
                 </div>
-                <div className="space-y-1 pt-1">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-                  <p className="text-[11px] font-medium text-muted-foreground/50">{source}</p>
-                </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -348,61 +353,64 @@ function Features() {
   return (
     <section id="features" className="py-24 sm:py-32 px-6 relative border-t border-border/50">
       <div className="max-w-[1240px] mx-auto space-y-16">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
-            <span className="w-5 h-px bg-primary" />
-            Capabilities
+        <Reveal>
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
+              <span className="w-5 h-px bg-primary" />
+              Capabilities
+            </div>
+            <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
+              <span className="text-foreground block">Built to execute real business tasks.</span>
+              <span className="text-muted-foreground/40 block">Grounded in your actual catalogue.</span>
+            </h2>
+            <p className="text-muted-foreground text-base leading-relaxed max-w-lg mx-auto">
+              Not a generic chatbot. {BRAND_NAME} works strictly from your approved products, prices, and policies.
+            </p>
           </div>
-          <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-            <span className="text-foreground block">Built to execute real business tasks.</span>
-            <span className="text-muted-foreground/40 block">Grounded in your actual catalogue.</span>
-          </h2>
-          <p className="text-muted-foreground text-base leading-relaxed max-w-lg mx-auto">
-            Not a generic chatbot. {BRAND_NAME} works strictly from your approved products, prices, and policies.
-          </p>
-        </div>
+        </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           {/* Features grid */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {features.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col gap-4 hover:border-primary/30 transition-all duration-300"
-              >
-                <div className="w-9 h-9 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center text-muted-foreground">
-                  <Icon className="size-[17px]" />
+            {features.map(({ icon: Icon, title, desc }, index) => (
+              <Reveal key={title} delay={index * 50} className="h-full [&>*]:h-full">
+                <div className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col gap-4 hover:border-primary/30 transition-all duration-300">
+                  <div className="w-9 h-9 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center text-muted-foreground">
+                    <Icon className="size-[17px]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="font-sans font-medium text-[16px] text-foreground">{title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <h3 className="font-sans font-medium text-[16px] text-foreground">{title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-                </div>
-              </div>
+              </Reveal>
             ))}
           </div>
 
           {/* Summary card */}
-          <div className="rounded-2xl border border-border/50 bg-card p-8 flex flex-col justify-between hover:border-primary/30 transition-all duration-300">
-            <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest">All-in-one</span>
-            <div className="space-y-5 pt-8">
-              <div className="space-y-2">
-                <h3 className="font-serif font-medium text-2xl text-foreground tracking-tight leading-snug">
-                  Always available. Always accurate.
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Configure your business once. Your AI employee works 24/7 without missing an order,
-                  providing wrong prices, or leaving a buyer waiting.
-                </p>
+          <Reveal delay={120} className="h-full [&>*]:h-full">
+            <div className="rounded-2xl border border-border/50 bg-card p-8 h-full flex flex-col justify-between hover:border-primary/30 transition-all duration-300">
+              <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest">All-in-one</span>
+              <div className="space-y-5 pt-8">
+                <div className="space-y-2">
+                  <h3 className="font-serif font-medium text-2xl text-foreground tracking-tight leading-snug">
+                    Always available. Always accurate.
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Configure your business once. Your AI employee works 24/7 without missing an order,
+                    providing wrong prices, or leaving a buyer waiting.
+                  </p>
+                </div>
+                <a
+                  href="/register"
+                  className="w-full h-11 rounded-xl border border-white/10 bg-primary-gradient text-primary-foreground text-sm font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                >
+                  Start Free Trial
+                  <ArrowUpRight className="size-[15px]" />
+                </a>
               </div>
-              <a
-                href="/register"
-                className="w-full h-11 rounded-xl border border-white/10 bg-primary-gradient text-primary-foreground text-sm font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2"
-              >
-                Start Free Trial
-                <ArrowUpRight className="size-[15px]" />
-              </a>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -436,31 +444,34 @@ function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 sm:py-32 px-6 relative border-t border-border/50">
       <div className="max-w-[1240px] mx-auto space-y-16">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
-            <span className="w-5 h-px bg-primary" />
-            How it works
+        <Reveal>
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
+              <span className="w-5 h-px bg-primary" />
+              How it works
+            </div>
+            <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
+              <span className="text-foreground block">Simple to launch.</span>
+              <span className="text-muted-foreground/40 block">Effortless to run.</span>
+            </h2>
           </div>
-          <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-            <span className="text-foreground block">Simple to launch.</span>
-            <span className="text-muted-foreground/40 block">Effortless to run.</span>
-          </h2>
-        </div>
+        </Reveal>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start pb-16">
-          {steps.map(({ step, title, desc, offset }) => (
-            <div
-              key={step}
-              className={`rounded-2xl border border-border/50 bg-card p-7 flex flex-col gap-10 hover:border-primary/30 transition-all duration-300 ${
-                offset ? 'md:translate-y-10' : ''
-              }`}
-            >
-              <span className="text-xs font-semibold text-primary tracking-wide uppercase">Step {step}</span>
-              <div className="space-y-2.5">
-                <h3 className="font-sans font-medium text-[18px] text-foreground leading-snug">{title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+          {steps.map(({ step, title, desc, offset }, index) => (
+            <Reveal key={step} delay={index * 80}>
+              <div
+                className={`rounded-2xl border border-border/50 bg-card p-7 flex flex-col gap-10 hover:border-primary/30 transition-all duration-300 ${
+                  offset ? 'md:translate-y-10' : ''
+                }`}
+              >
+                <span className="text-xs font-semibold text-primary tracking-wide uppercase">Step {step}</span>
+                <div className="space-y-2.5">
+                  <h3 className="font-sans font-medium text-[18px] text-foreground leading-snug">{title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                </div>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -528,93 +539,96 @@ function Pricing() {
   return (
     <section id="pricing" className="py-24 sm:py-32 px-6 relative border-t border-border/50">
       <div className="max-w-[1240px] mx-auto space-y-16">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
-            <span className="w-5 h-px bg-primary" />
-            Pricing
-          </div>
-          <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-            <span className="text-foreground block">Transparent plans.</span>
-            <span className="text-muted-foreground/40 block">No surprises.</span>
-          </h2>
-          <p className="text-muted-foreground text-base leading-relaxed max-w-lg mx-auto">
-            Start free and scale as your business grows.
-          </p>
+        <Reveal>
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-primary uppercase tracking-widest">
+              <span className="w-5 h-px bg-primary" />
+              Pricing
+            </div>
+            <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
+              <span className="text-foreground block">Transparent plans.</span>
+              <span className="text-muted-foreground/40 block">No surprises.</span>
+            </h2>
+            <p className="text-muted-foreground text-base leading-relaxed max-w-lg mx-auto">
+              Start free and scale as your business grows.
+            </p>
 
-          {/* Billing toggle */}
-          <div className="inline-flex items-center gap-3 rounded-full border border-border/50 bg-card px-4 py-2 text-sm">
-            <span className={annual ? 'text-muted-foreground' : 'font-medium text-foreground'}>Monthly</span>
-            <button
-              role="switch"
-              aria-checked={annual}
-              onClick={() => setAnnual(!annual)}
-              className={`relative h-5 w-10 rounded-full border transition-colors ${annual ? 'bg-primary border-primary' : 'bg-muted border-border'}`}
-            >
-              <span
-                className={`absolute top-0.5 size-3.5 rounded-full bg-primary-foreground transition-transform ${annual ? 'translate-x-5' : 'translate-x-0.5'}`}
-              />
-            </button>
-            <span className={annual ? 'font-medium text-foreground' : 'text-muted-foreground'}>
-              Annual <span className="text-primary text-[10px] font-semibold ml-1">–20%</span>
-            </span>
+            {/* Billing toggle */}
+            <div className="inline-flex items-center gap-3 rounded-full border border-border/50 bg-card px-4 py-2 text-sm">
+              <span className={annual ? 'text-muted-foreground' : 'font-medium text-foreground'}>Monthly</span>
+              <button
+                role="switch"
+                aria-checked={annual}
+                onClick={() => setAnnual(!annual)}
+                className={`relative h-5 w-10 rounded-full border transition-colors ${annual ? 'bg-primary border-primary' : 'bg-muted border-border'}`}
+              >
+                <span
+                  className={`absolute top-0.5 size-3.5 rounded-full bg-primary-foreground transition-transform ${annual ? 'translate-x-5' : 'translate-x-0.5'}`}
+                />
+              </button>
+              <span className={annual ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+                Annual <span className="text-primary text-[10px] font-semibold ml-1">–20%</span>
+              </span>
+            </div>
           </div>
-        </div>
+        </Reveal>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {plans.map(({ name, price, period, desc, features, cta, href, highlighted }) => {
+          {plans.map(({ name, price, period, desc, features, cta, href, highlighted }, index) => {
             const displayPrice = annual && price > 0 ? Math.round(price * 0.8) : price
             return (
-              <div
-                key={name}
-                className={`rounded-2xl border p-8 flex flex-col gap-6 transition-all duration-300 ${
-                  highlighted
-                    ? 'border-primary/50 bg-primary/5 relative overflow-hidden'
-                    : 'border-border/50 bg-card hover:border-primary/30'
-                }`}
-              >
-                {highlighted && (
-                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
-                )}
-                <div>
-                  {highlighted && (
-                    <span className="inline-block rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-semibold text-primary uppercase tracking-wide mb-3">
-                      Most popular
-                    </span>
-                  )}
-                  <h3 className="font-sans font-semibold text-xl text-foreground">{name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-serif text-4xl font-medium text-foreground">
-                      {price === 0 ? 'Free' : `$${displayPrice}`}
-                    </span>
-                    {price > 0 && (
-                      <span className="text-sm text-muted-foreground">{annual ? '/mo, billed annually' : '/mo'}</span>
-                    )}
-                  </div>
-                  {price === 0 && <span className="text-sm text-muted-foreground">{period}</span>}
-                </div>
-                <ul className="space-y-3 flex-1">
-                  {features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2.5 text-sm">
-                      <Check className="size-4 text-primary flex-shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={href}
-                  className={`flex items-center justify-center w-full h-11 rounded-xl text-sm font-medium transition-all ${
+              <Reveal key={name} delay={index * 80} className="h-full [&>*]:h-full">
+                <div
+                  className={`rounded-2xl border p-8 h-full flex flex-col gap-6 transition-all duration-300 ${
                     highlighted
-                      ? 'border border-white/10 bg-primary-gradient text-primary-foreground hover:brightness-110'
-                      : 'border border-border text-foreground hover:bg-muted/50'
+                      ? 'border-primary/50 bg-primary/5 relative overflow-hidden'
+                      : 'border-border/50 bg-card hover:border-primary/30'
                   }`}
                 >
-                  {cta}
-                  <ArrowUpRight className="ml-1.5 size-4" />
-                </a>
-              </div>
+                  {highlighted && (
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
+                  )}
+                  <div>
+                    {highlighted && (
+                      <span className="inline-block rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-semibold text-primary uppercase tracking-wide mb-3">
+                        Most popular
+                      </span>
+                    )}
+                    <h3 className="font-sans font-semibold text-xl text-foreground">{name}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-serif text-4xl font-medium text-foreground">
+                        {price === 0 ? 'Free' : `$${displayPrice}`}
+                      </span>
+                      {price > 0 && (
+                        <span className="text-sm text-muted-foreground">{annual ? '/mo, billed annually' : '/mo'}</span>
+                      )}
+                    </div>
+                    {price === 0 && <span className="text-sm text-muted-foreground">{period}</span>}
+                  </div>
+                  <ul className="space-y-3 flex-1">
+                    {features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2.5 text-sm">
+                        <Check className="size-4 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-muted-foreground">{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={href}
+                    className={`flex items-center justify-center w-full h-11 rounded-xl text-sm font-medium transition-all ${
+                      highlighted
+                        ? 'border border-white/10 bg-primary-gradient text-primary-foreground hover:brightness-110'
+                        : 'border border-border text-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    {cta}
+                    <ArrowUpRight className="ml-1.5 size-4" />
+                  </a>
+                </div>
+              </Reveal>
             )
           })}
         </div>
@@ -629,30 +643,32 @@ function CTA() {
   return (
     <section className="relative py-24 sm:py-32 px-6 border-t border-border/50">
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)]" />
-      <div className="max-w-[1240px] mx-auto text-center space-y-8">
-        <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
-          <span className="text-foreground block">Your shop, answering</span>
-          <span className="text-gradient-primary block">customers at 3am.</span>
-        </h2>
-        <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md mx-auto">
-          Set up your storefront and AI assistant in minutes. Turn conversations into paid orders.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="/register"
-            className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-white/10 bg-primary-gradient text-primary-foreground font-semibold text-sm hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            Start Free Trial
-            <ArrowUpRight className="ml-2 size-4" />
-          </a>
-          <a
-            href="/login"
-            className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-border text-foreground hover:bg-muted/50 font-medium text-sm transition-all"
-          >
-            Sign in
-          </a>
+      <Reveal>
+        <div className="max-w-[1240px] mx-auto text-center space-y-8">
+          <h2 className="font-serif font-medium text-4xl sm:text-6xl tracking-tight leading-[1.1]">
+            <span className="text-foreground block">Your shop, answering</span>
+            <span className="text-gradient-primary block">customers at 3am.</span>
+          </h2>
+          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-md mx-auto">
+            Set up your storefront and AI assistant in minutes. Turn conversations into paid orders.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="/register"
+              className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-white/10 bg-primary-gradient text-primary-foreground font-semibold text-sm hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              Start Free Trial
+              <ArrowUpRight className="ml-2 size-4" />
+            </a>
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center h-12 px-8 rounded-full border border-border text-foreground hover:bg-muted/50 font-medium text-sm transition-all"
+            >
+              Sign in
+            </a>
+          </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   )
 }
