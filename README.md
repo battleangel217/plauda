@@ -56,9 +56,12 @@ Merchant JWTs and the current user are stored in browser `localStorage`. A
 non-sensitive `plauda_auth=1` cookie guards the merchant pages in `proxy.ts`; the
 backend remains the source of truth for every request.
 
-Public chat visitors get a visitor token from
-`POST /public/chat/:slug/conversations`. The token and conversation status are
-kept in `localStorage` under `plauda-chat:<slug>`.
+Public chat visitors enter a name and phone number before starting. Those
+details are sent to `POST /public/chat/:slug/conversations`, where the backend
+stores them as the conversation's `customer_name` and `customer_contact` so
+they appear in the merchant inbox. The returned visitor token and conversation
+status are kept in `localStorage` under `plauda-chat:<slug>`; the visitor's
+details are kept under `plauda-visitor:<slug>` for future chats.
 
 Order cards are saved under `plauda-order:<id>` so `/checkout/[orderId]` can
 render without a public order endpoint. The backend returns buyers to

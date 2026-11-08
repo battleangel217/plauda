@@ -1,12 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowUpRight,
   Check,
   CreditCard,
   Loader2,
+  MessageSquare,
   Send,
+  ShieldCheck,
   Sparkles,
   Users,
   X,
@@ -14,18 +16,22 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
   clearChatSession,
   createConversation,
   fetchMessages,
   loadChatSession,
+  loadVisitorIdentity,
   requestHandoff,
   saveChatSession,
   saveOrderSnapshot,
+  saveVisitorIdentity,
   sendChatTurn,
   streamConversation,
   type ChatSession,
+  type VisitorIdentity,
 } from '@/lib/chat-client'
 import type {
   ApiMessage,
@@ -221,6 +227,126 @@ function OrderCard({
   )
 }
 
+function isValidPhone(value: string) {
+  const trimmed = value.trim()
+  const digits = trimmed.replace(/\D/g, '')
+  return /^\+?[\d\s().-]+$/.test(trimmed) && digits.length >= 7 && digits.length <= 15
+}
+
+function VisitorDetailsForm({
+  merchantName,
+  identity,
+  touched,
+  error,
+  busy,
+  showFooter,
+  onChange,
+  onSubmit,
+}: {
+  merchantName: string
+  identity: VisitorIdentity
+  touched: { name: boolean; contact: boolean }
+  error: string | null
+  busy: boolean
+  showFooter: boolean
+  onChange: (patch: Partial<VisitorIdentity>) => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+}) {
+  const nameInvalid = touched.name && !identity.name.trim()
+  const contactInvalid = touched.contact && !isValidPhone(identity.contact)
+
+  return (
+    <div className="flex w-full flex-1 items-center justify-center py-4">
+      <div className="w-full max-w-sm">
+        <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
+          <div className="grid size-10 place-items-center rounded-full border border-white/10 bg-primary-gradient text-primary-foreground">
+            <Sparkles className="size-5" strokeWidth={1.5} />
+          </div>
+          <h2 className="mt-4 font-serif text-2xl tracking-tight">Before we start</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Add your name and phone number so {merchantName} can identify you and follow up if a
+            person joins the chat.
+          </p>
+
+          <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
+            <div>
+              <label htmlFor="visitor-name" className="mb-1.5 block text-sm font-medium">
+                Name or username
+              </label>
+              <Input
+                id="visitor-name"
+                value={identity.name}
+                onChange={(event) => onChange({ name: event.target.value })}
+                placeholder="e.g. Alex or @alex"
+                autoComplete="name"
+                maxLength={200}
+                disabled={busy}
+                aria-invalid={nameInvalid}
+              />
+              {nameInvalid && (
+                <p className="mt-1.5 text-xs text-destructive">Enter your name.</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="visitor-contact" className="mb-1.5 block text-sm font-medium">
+                Phone number
+              </label>
+              <Input
+                id="visitor-contact"
+                type="tel"
+                inputMode="tel"
+                value={identity.contact}
+                onChange={(event) => onChange({ contact: event.target.value })}
+                placeholder="+1 555 123 4567"
+                autoComplete="tel"
+                maxLength={320}
+                disabled={busy}
+                aria-invalid={contactInvalid}
+              />
+              {contactInvalid && (
+                <p className="mt-1.5 text-xs text-destructive">
+                  Enter a valid phone number with 7–15 digits.
+                </p>
+              )}
+            </div>
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-[6px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              >
+                {error}
+              </p>
+            )}
+
+            <Button type="submit" className="h-10 w-full" disabled={busy}>
+              {busy ? (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              ) : (
+                <MessageSquare className="mr-1.5 size-4" />
+              )}
+              {busy ? 'Starting chat…' : 'Start chat'}
+            </Button>
+          </form>
+
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
+            <ShieldCheck className="size-3.5" /> Shared only with {merchantName}.
+          </p>
+        </div>
+
+        {showFooter && (
+          <p className="mt-4 text-center text-[10px] text-muted-foreground">
+            <a href="/" className="underline">
+              Powered by Plauda
+            </a>
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface ChatThreadProps {
   merchantName: string
   slug: string
@@ -247,6 +373,11 @@ export function ChatThread({
   const [handoffLoading, setHandoffLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [visitor, setVisitor] = useState<VisitorIdentity>({ name: '', contact: '' })
+  const [visitorTouched, setVisitorTouched] = useState({
+    name: false,
+    contact: false,
+  })
   const endRef = useRef<HTMLDivElement>(null)
   const sessionRef = useRef<ChatSession | null>(null)
   const systemCounter = useRef(0)
@@ -295,72 +426,62 @@ export function ChatThread({
   useEffect(() => {
     let cancelled = false
 
-    const beginNewConversation = async () => {
-      const created = await createConversation(slug)
-      if (cancelled) return
-      saveChatSession(slug, created)
-      sessionRef.current = created
-      setSession(created)
-      setStatus(created.status)
-      setOrder(created.order)
-      setMessages([])
-    }
-
     const initialise = async () => {
       setLoading(true)
       setError(null)
       setConnectionError(null)
 
+      const savedVisitor = loadVisitorIdentity(slug)
+      if (savedVisitor && !cancelled) setVisitor(savedVisitor)
+
       const saved = loadChatSession(slug)
-      if (saved) {
-        sessionRef.current = saved
-        setSession(saved)
-        setStatus(saved.status)
-        setOrder(saved.order)
+      if (!saved) {
+        if (!cancelled) setLoading(false)
+        return
+      }
 
-        try {
-          const history = await fetchMessages(slug, saved)
-          if (cancelled) return
-          setMessages(history.map(toUiMessage))
+      sessionRef.current = saved
+      setSession(saved)
+      setStatus(saved.status)
+      setOrder(saved.order)
 
-          const paymentMessage = history.find(
-            (message) =>
-              message.role === 'system' && message.meta?.kind === 'payment',
-          )
-          if (saved.order && paymentMessage) {
-            const messageOrderId =
-              typeof paymentMessage.meta.order_id === 'string'
-                ? paymentMessage.meta.order_id
-                : null
-            if (
-              (!messageOrderId || messageOrderId === saved.order.id) &&
-              saved.order.status !== 'paid' &&
-              saved.order.status !== 'fulfilled'
-            ) {
-              const paidOrder = { ...saved.order, status: 'paid' as const }
-              applyOrder(paidOrder)
-              saveChatSession(slug, { ...saved, order: paidOrder })
-            }
-          }
-        } catch (caught) {
-          if (cancelled) return
-          const apiError = caught as ApiError
-          if (apiError.status === 401 || apiError.status === 404) {
-            clearChatSession(slug)
-            try {
-              await beginNewConversation()
-            } catch {
-              setError('We could not start the chat. Please try again.')
-            }
-          } else {
-            setError('We could not load your conversation. Please refresh to try again.')
+      try {
+        const history = await fetchMessages(slug, saved)
+        if (cancelled) return
+        setMessages(history.map(toUiMessage))
+
+        const paymentMessage = history.find(
+          (message) =>
+            message.role === 'system' && message.meta?.kind === 'payment',
+        )
+        if (saved.order && paymentMessage) {
+          const messageOrderId =
+            typeof paymentMessage.meta.order_id === 'string'
+              ? paymentMessage.meta.order_id
+              : null
+          if (
+            (!messageOrderId || messageOrderId === saved.order.id) &&
+            saved.order.status !== 'paid' &&
+            saved.order.status !== 'fulfilled'
+          ) {
+            const paidOrder = { ...saved.order, status: 'paid' as const }
+            applyOrder(paidOrder)
+            saveChatSession(slug, { ...saved, order: paidOrder })
           }
         }
-      } else {
-        try {
-          await beginNewConversation()
-        } catch {
-          if (!cancelled) setError('We could not start the chat. Please try again.')
+      } catch (caught) {
+        if (cancelled) return
+        const apiError = caught as ApiError
+        if (apiError.status === 401 || apiError.status === 404) {
+          clearChatSession(slug)
+          sessionRef.current = null
+          setSession(null)
+          setStatus('ai')
+          setOrder(null)
+          setMessages([])
+          setError('Your previous chat expired. Enter your details to start a new one.')
+        } else {
+          setError('We could not load your conversation. Please refresh to try again.')
         }
       }
 
@@ -515,6 +636,7 @@ export function ChatThread({
       }
     }
 
+    let sessionExpired = false
     try {
       await sendChatTurn(slug, session, text, handleTurnEvent)
     } catch (caught) {
@@ -522,7 +644,14 @@ export function ChatThread({
       if (apiError.status === 429) {
         setError('You are sending messages too quickly. Please wait a moment and try again.')
       } else if (apiError.status === 401 || apiError.status === 404) {
-        setError('This conversation has expired. Start a new chat to continue.')
+        sessionExpired = true
+        clearChatSession(slug)
+        sessionRef.current = null
+        setSession(null)
+        setStatus('ai')
+        setOrder(null)
+        setMessages([])
+        setError('This conversation expired. Enter your details to start a new chat.')
       } else {
         setError(apiError.message || 'The assistant could not reply. Please try again.')
       }
@@ -532,7 +661,7 @@ export function ChatThread({
       setToolStatus(null)
     }
 
-    await syncHistory(session)
+    if (!sessionExpired) await syncHistory(session)
   }
 
   const requestHuman = async () => {
@@ -553,33 +682,61 @@ export function ChatThread({
     }
   }
 
-  const startNewChat = async () => {
+  const updateVisitor = (patch: Partial<VisitorIdentity>) => {
+    setVisitor((current) => ({ ...current, ...patch }))
+    setError(null)
+  }
+
+  const startChat = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (creating) return
 
+    const name = visitor.name.trim()
+    const contact = visitor.contact.trim()
+    setVisitorTouched({ name: true, contact: true })
+    setError(null)
+
+    if (!name || !isValidPhone(contact)) return
+
     setCreating(true)
+    setConnectionError(null)
+    setToolStatus(null)
+    setWaitingForReply(false)
+
+    try {
+      const created = await createConversation(slug, { name, contact })
+      saveVisitorIdentity(slug, { name, contact })
+      saveChatSession(slug, created)
+      sessionRef.current = created
+      setVisitor({ name, contact })
+      setVisitorTouched({ name: false, contact: false })
+      setSession(created)
+      setStatus(created.status)
+      setOrder(created.order)
+      setMessages([])
+    } catch (caught) {
+      const apiError = caught as ApiError
+      setError(apiError.message || 'We could not start the chat. Please try again.')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const startNewChat = () => {
+    if (creating || sending || handoffLoading) return
+
     setError(null)
     setConnectionError(null)
     setToolStatus(null)
     setWaitingForReply(false)
+    setVisitorTouched({ name: false, contact: false })
     clearChatSession(slug)
+    sessionRef.current = null
     setMessages([])
     setSession(null)
     setOrder(null)
     setStatus('ai')
     setDraft('')
-
-    try {
-      const created = await createConversation(slug)
-      saveChatSession(slug, created)
-      sessionRef.current = created
-      setSession(created)
-      setStatus(created.status)
-      setOrder(created.order)
-    } catch {
-      setError('We could not start a new chat. Please try again.')
-    } finally {
-      setCreating(false)
-    }
   }
 
   const humanButtonLabel =
@@ -595,8 +752,9 @@ export function ChatThread({
 
   const headerStatus = useMemo(() => {
     if (loading) return { label: 'Connecting…', dot: 'bg-amber-500' }
+    if (!session) return { label: 'Ready to chat', dot: 'bg-emerald-500' }
     return conversationState
-  }, [conversationState, loading])
+  }, [conversationState, loading, session])
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -648,71 +806,93 @@ export function ChatThread({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
         <div className="flex min-h-full flex-col gap-3">
-          {status === 'handoff_requested' && (
-            <div className="rounded-[6px] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
-              A person from {merchantName} has been notified and will reply here.
-            </div>
-          )}
-
-          {status === 'human_active' && (
-            <div className="rounded-[6px] border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-center text-xs text-blue-300">
-              A person from {merchantName} is in this chat.
-            </div>
-          )}
-
-          {status === 'closed' && (
-            <div className="rounded-[6px] border bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
-              This conversation is closed. Start a new chat to keep talking.
-            </div>
-          )}
-
-          {connectionError && !loading && (
-            <div className="rounded-[6px] border border-border bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground">
-              {connectionError}
-            </div>
-          )}
-
-          {loading || creating ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              {creating ? 'Starting a new chat…' : 'Opening chat…'}
-            </div>
+          {!session ? (
+            loading ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Opening chat…
+              </div>
+            ) : (
+              <VisitorDetailsForm
+                merchantName={merchantName}
+                identity={visitor}
+                touched={visitorTouched}
+                error={error}
+                busy={creating}
+                showFooter={showFooter}
+                onChange={updateVisitor}
+                onSubmit={startChat}
+              />
+            )
           ) : (
             <>
-              {messages.length === 0 && (
-                <div className="flex justify-start">
-                  <div className="max-w-[88%] rounded-[10px] rounded-bl-sm border bg-background px-4 py-3 text-sm leading-relaxed">
-                    <p>
-                      Hi! I’m the AI assistant for {merchantName}. Ask me about products, delivery,
-                      or an order.
-                    </p>
-                  </div>
+              {status === 'handoff_requested' && (
+                <div className="rounded-[6px] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-300">
+                  A person from {merchantName} has been notified and will reply here.
                 </div>
               )}
 
-              {messages.map((message) => (
-                <Message key={message.id} message={message} />
-              ))}
-
-              {order && <OrderCard order={order} merchantName={merchantName} slug={slug} />}
-
-              {toolStatus && (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-[11px] text-muted-foreground">
-                    <Loader2 className="size-3 animate-spin" />
-                    {toolStatus}…
-                  </div>
+              {status === 'human_active' && (
+                <div className="rounded-[6px] border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-center text-xs text-blue-300">
+                  A person from {merchantName} is in this chat.
                 </div>
               )}
 
-              {waitingForReply && !toolStatus && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="rounded-[10px] rounded-bl-sm border bg-background px-4 py-3">
-                    <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-                    <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:120ms]" />
-                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:240ms]" />
-                  </div>
+              {status === 'closed' && (
+                <div className="rounded-[6px] border bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
+                  This conversation is closed. Start a new chat to keep talking.
                 </div>
+              )}
+
+              {connectionError && !loading && (
+                <div className="rounded-[6px] border border-border bg-muted/40 px-3 py-2 text-center text-[11px] text-muted-foreground">
+                  {connectionError}
+                </div>
+              )}
+
+              {loading || creating ? (
+                <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {creating ? 'Starting a new chat…' : 'Opening chat…'}
+                </div>
+              ) : (
+                <>
+                  {messages.length === 0 && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[88%] rounded-[10px] rounded-bl-sm border bg-background px-4 py-3 text-sm leading-relaxed">
+                        <p>
+                          Hi! I’m the AI assistant for {merchantName}. Ask me about products, delivery,
+                          or an order.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {messages.map((message) => (
+                    <Message key={message.id} message={message} />
+                  ))}
+
+                  {order && <OrderCard order={order} merchantName={merchantName} slug={slug} />}
+
+                  {toolStatus && (
+                    <div className="flex justify-start">
+                      <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-[11px] text-muted-foreground">
+                        <Loader2 className="size-3 animate-spin" />
+                        {toolStatus}…
+                      </div>
+                    </div>
+                  )}
+
+                  {waitingForReply && !toolStatus && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="rounded-[10px] rounded-bl-sm border bg-background px-4 py-3">
+                        <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
+                        <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:120ms]" />
+                        <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:240ms]" />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -721,65 +901,71 @@ export function ChatThread({
         </div>
       </div>
 
-      <div className="border-t bg-background px-4 py-3">
-        {error && (
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-destructive">
-            <span>{error}</span>
-            {(!session || !canChat) && (
-              <button className="underline" onClick={startNewChat} disabled={creating}>
-                Try again
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-end gap-2 rounded-[10px] border bg-background p-2 shadow-sm">
-          <Textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value.slice(0, 500))}
-            onKeyDown={(event) => {
-              if (
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing &&
-                event.keyCode !== 229
-              ) {
-                event.preventDefault()
-                void send()
-              }
-            }}
-            placeholder={placeholder}
-            className="min-h-10 resize-none border-0 p-2 shadow-none focus-visible:ring-0"
-            maxLength={500}
-            disabled={!canChat || loading || creating}
-          />
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] text-muted-foreground">{draft.length}/500</span>
-            <Button
-              size="icon"
-              className="size-9 rounded-[6px]"
-              disabled={!canChat || sending || loading || creating || !draft.trim()}
-              onClick={() => void send()}
-              aria-label="Send message"
-            >
-              {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            </Button>
-          </div>
-        </div>
-        <p className="mt-2 flex items-center justify-center gap-1 text-center text-[10px] text-muted-foreground">
-          {showFooter && (
-            <>
-              <a href="/" className="underline">
-                Powered by Plauda
-              </a>
-              <span>·</span>
-            </>
+      {session && (
+        <div className="border-t bg-background px-4 py-3">
+          {error && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-destructive">
+              <span>{error}</span>
+              {(!session || !canChat) && (
+                <button className="underline" onClick={startNewChat} disabled={creating}>
+                  Try again
+                </button>
+              )}
+            </div>
           )}
-          <button className="underline" onClick={startNewChat} disabled={creating}>
-            New chat
-          </button>
-        </p>
-      </div>
+
+          <div className="flex items-end gap-2 rounded-[10px] border bg-background p-2 shadow-sm">
+            <Textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.slice(0, 500))}
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing &&
+                  event.keyCode !== 229
+                ) {
+                  event.preventDefault()
+                  void send()
+                }
+              }}
+              placeholder={placeholder}
+              className="min-h-10 resize-none border-0 p-2 shadow-none focus-visible:ring-0"
+              maxLength={500}
+              disabled={!canChat || loading || creating}
+            />
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[10px] text-muted-foreground">{draft.length}/500</span>
+              <Button
+                size="icon"
+                className="size-9 rounded-[6px]"
+                disabled={!canChat || sending || loading || creating || !draft.trim()}
+                onClick={() => void send()}
+                aria-label="Send message"
+              >
+                {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              </Button>
+            </div>
+          </div>
+          <p className="mt-2 flex items-center justify-center gap-1 text-center text-[10px] text-muted-foreground">
+            {showFooter && (
+              <>
+                <a href="/" className="underline">
+                  Powered by Plauda
+                </a>
+                <span>·</span>
+              </>
+            )}
+            <button
+              className="underline"
+              onClick={startNewChat}
+              disabled={creating || sending || handoffLoading}
+            >
+              New chat
+            </button>
+          </p>
+        </div>
+      )}
     </div>
   )
 }

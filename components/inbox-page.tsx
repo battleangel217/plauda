@@ -482,7 +482,9 @@ export function InboxPage() {
                     </span>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {conversation.handoff_reason || conversation.customer_contact || 'Storefront chat'}
+                    {conversation.customer_contact ||
+                      conversation.handoff_reason ||
+                      'Storefront chat'}
                   </p>
                   <StatusBadge status={conversation.status} />
                 </button>

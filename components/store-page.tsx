@@ -99,7 +99,8 @@ export function StorePage({ store }: { store: PublicStoreMeta }) {
                 </span>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                The assistant quotes prices in {store.currency}. No account is needed to chat.
+                The assistant quotes prices in {store.currency}. No account is needed — just your
+                name and phone number to start.
               </p>
             </div>
           </div>

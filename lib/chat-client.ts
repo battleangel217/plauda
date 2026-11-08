@@ -25,7 +25,13 @@ export interface StoredOrder {
   savedAt: string
 }
 
+export interface VisitorIdentity {
+  name: string
+  contact: string
+}
+
 const chatKey = (slug: string) => `plauda-chat:${slug}`
+const visitorKey = (slug: string) => `plauda-visitor:${slug}`
 const orderKey = (id: string) => `plauda-order:${id}`
 const submittedKey = (id: string) => `plauda-order-submitted:${id}`
 
@@ -63,6 +69,34 @@ export function clearChatSession(slug: string) {
     window.localStorage.removeItem(chatKey(slug))
   } catch {
     // Ignore storage errors.
+  }
+}
+
+export function loadVisitorIdentity(slug: string): VisitorIdentity | null {
+  try {
+    const raw = window.localStorage.getItem(visitorKey(slug))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<VisitorIdentity>
+    if (
+      typeof parsed.name !== 'string' ||
+      typeof parsed.contact !== 'string' ||
+      !parsed.name.trim() ||
+      !parsed.contact.trim()
+    ) {
+      window.localStorage.removeItem(visitorKey(slug))
+      return null
+    }
+    return { name: parsed.name, contact: parsed.contact }
+  } catch {
+    return null
+  }
+}
+
+export function saveVisitorIdentity(slug: string, identity: VisitorIdentity) {
+  try {
+    window.localStorage.setItem(visitorKey(slug), JSON.stringify(identity))
+  } catch {
+    // Storage is a convenience; the chat still works for this visit.
   }
 }
 
@@ -147,11 +181,14 @@ export function sessionFromConversation(conversation: VisitorConversation): Chat
   }
 }
 
-export async function createConversation(slug: string): Promise<ChatSession> {
+export async function createConversation(
+  slug: string,
+  visitor: VisitorIdentity,
+): Promise<ChatSession> {
   const response = await fetch(`/api/chat/${encodeURIComponent(slug)}/conversations`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify(visitor),
   })
   if (!response.ok) throw await toApiError(response)
   return sessionFromConversation((await response.json()) as VisitorConversation)
