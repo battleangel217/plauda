@@ -77,3 +77,7 @@ checkout uses locally persisted order snapshots.
 
 PayPal payment links come from the backend order card (`approval_link`). The
 frontend never sees card details.
+
+## License
+
+Plauda is released under the MIT License. See [LICENSE](LICENSE) for details.
